@@ -1,0 +1,473 @@
+/* modules/ui/stats-modal.css */
+.stats-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    font-family: var(--font-system);
+}
+
+/* 确保模态框样式只影响模态框内部，不影响右侧面板 */
+.stats-modal .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent-color);
+    margin-bottom: 4px;
+}
+
+.stats-modal .stat-label {
+    font-size: 12px;
+    color: var(--sub);
+    font-weight: 500;
+}
+
+/* 夜间模式下统计模态框数字样式 */
+body.dark .stats-modal .stat-value {
+    color: #64b5f6 !important; /* 使用主文字颜色 */
+}
+
+/* 明确指定右侧面板的样式不受影响 */
+.right-panel .stat-value,
+.right-panel .stat-label {
+    font-size: 13px !important; /* 强制使用小字体 */
+}
+.stats-modal.show {
+    display: block;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-content {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    border: 1px solid var(--btn-sec);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--btn-sec);
+    background: var(--card);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--sub);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.close-modal:hover {
+    background: var(--btn-sec);
+    color: var(--text);
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(90vh - 80px);
+}
+
+.modal-filters select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+/* 区域标题 */
+.modal-section {
+    margin-bottom: 32px;
+}
+
+.modal-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--btn-sec);
+}
+
+/* 统计网格 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    background: var(--btn-sec);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid var(--btn-sec-h);
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--sub);
+    font-weight: 500;
+}
+
+/* 分类统计 */
+.category-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+
+.category-group h5 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.progress-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.progress-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.progress-label {
+    font-size: 13px;
+    color: var(--text);
+    min-width: 80px;
+    font-weight: 500;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--btn-sec);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+    position: relative;
+}
+
+/* 不同分类的颜色 */
+.progress-fill.c-base {
+    background: linear-gradient(90deg, #3eaf7c, #4fd1a4);
+}
+
+.progress-fill.a-base {
+    background: linear-gradient(90deg, #e5a639, #f7c048);
+}
+
+.progress-fill.natural {
+    background: linear-gradient(90deg, #4299e1, #63b3ed);
+}
+
+.progress-fill.accidental {
+    background: linear-gradient(90deg, #9f7aea, #b794f4);
+}
+
+/* 调性颜色 */
+.progress-fill.key-c { background: linear-gradient(90deg, #e53e3e, #fc8181); }
+.progress-fill.key-d { background: linear-gradient(90deg, #dd6b20, #f6ad55); }
+.progress-fill.key-e { background: linear-gradient(90deg, #d69e2e, #f6e05e); }
+.progress-fill.key-f { background: linear-gradient(90deg, #38a169, #68d391); }
+.progress-fill.key-g { background: linear-gradient(90deg, #319795, #4fd1c7); }
+.progress-fill.key-a { background: linear-gradient(90deg, #3182ce, #63b3ed); }
+.progress-fill.key-b { background: linear-gradient(90deg, #805ad5, #b794f4); }
+
+/* 难度颜色 */
+.progress-fill.basic { background: linear-gradient(90deg, #4c51bf, #7f9cf5); }
+.progress-fill.extended { background: linear-gradient(90deg, #b83280, #ed64a6); }
+
+.progress-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 40px;
+    text-align: right;
+}
+
+/* 控制按钮 */
+.modal-controls {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--btn-sec);
+}
+
+.btn-danger {
+    background: #e53e3e;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-danger:hover {
+    background: #c53030;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--btn-sec);
+    color: var(--text);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: var(--btn-sec-h);
+    transform: translateY(-1px);
+}
+
+/* 提示信息 */
+.stats-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--card);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--btn-sec);
+    z-index: 3000;
+    font-size: 14px;
+    animation: toastFade 2s ease-in-out;
+}
+
+@keyframes toastFade {
+    0%, 100% { opacity: 0; transform: translate(-50%, -40%); }
+    10%, 90% { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 10px;
+    }
+    
+    .modal-content {
+        max-height: 95vh;
+    }
+    
+    .modal-body {
+        padding: 16px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .category-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-controls {
+        flex-direction: column;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .progress-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .progress-label {
+        min-width: auto;
+    }
+}
+
+/* 统计模态框滚动条样式 - 使用完全独立的变量 */
+.stats-modal .modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.stats-modal .modal-body::-webkit-scrollbar-track {
+    background: var(--stats-modal-scroll-track);
+    border-radius: 4px;
+}
+
+.stats-modal .modal-body::-webkit-scrollbar-thumb {
+    background: var(--stats-modal-scroll-thumb);
+    border-radius: 4px;
+    border: 2px solid var(--stats-modal-scroll-track);
+}
+
+.stats-modal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--stats-modal-scroll-thumb-hover);
+}
+
+/* Firefox */
+.stats-modal .modal-body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--stats-modal-scroll-thumb) var(--stats-modal-scroll-track);
+}
+
+/* 新增分类统计样式 - 统一为进度条样式 */
+.key-stats-list,
+.difficulty-stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+/* 移除旧的列表项样式 */
+.key-stat-item,
+.difficulty-stat-item {
+    display: none;
+}
+
+.key-name,
+.difficulty-name,
+.key-numbers,
+.difficulty-numbers,
+.key-accuracy,
+.difficulty-accuracy {
+    display: none;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--sub);
+    font-style: italic;
+    padding: 12px;
+    font-size: 13px;
+}
+
+/* 进度条标签样式优化 */
+.progress-label {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 0;
+    color: var(--text);
+    min-width: 100px;
+}
+
+.progress-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-color);
+    min-width: 35px;
+    text-align: right;
+}
+
+body.dark .progress-value {
+    color: var(--text) !important; /* 使用主文字颜色 */
+}
+/* 分类组样式优化 */
+.category-group {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--btn-sec);
+}
+
+.category-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.category-group h5 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 600;
+}
