@@ -12,8 +12,6 @@
 8. 其它补充样式与特殊规则（面板例外、主内容区、播放按钮等）
 9. 响应式设计与兼容性补充（媒体查询、移动端适配等）
 
-========================= */
-
 /* 
 颜色使用规范：
 - 文字颜色：var(--text) 或 var(--sub)
@@ -31,7 +29,6 @@
 html, body {
   height: 100%;
   margin: 0;
-  font-family: var(--font-system);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -66,10 +63,57 @@ html, body {
   --stats-modal-scroll-thumb: #667eea; 
   --stats-modal-scroll-thumb-hover: #5a6fd8;
   --ans-bg: linear-gradient(145deg, #ecf0f1, #bdc3c7);
+  /* 语义化颜色变量，便于主题与维护 */
+  --danger: #ff4444; /* 用于警告 / 错误 */
+  --danger-strong: #ff3d71; /* 强烈错误/不正确 */
+  --success: #00c853; /* 正确/成功 */
+  --muted: #9ca3af;
+  --toast-bg: var(--card);
+  --toast-text: var(--text);
+  --toast-border: #e5e7eb;
+  /* 用于需要 rgb 形式的场景（部分样式引用 --accent-rgb） */
+  --accent-rgb: 248, 74, 110;
+  /* 音级（degree）语义颜色，便于统一管理 */
+  --degree-I: #e74c3c;
+  --degree-II: #e67e22;
+  --degree-III: #f1c40f;
+  --degree-IV: #2ecc71;
+  --degree-V: #3498db;
+  --degree-VI: #9b59b6;
+  --degree-VII: #1abc9c;
+
+  /* 按钮与主要 UI 渐变色（语义化） */
+  --btn-primary-start: #6a82fb;
+  --btn-primary-end: #fc5c7d;
+  --btn-primary-text: #ffffff;
+
+  /* 大播放按钮渐变（可在暗色主题覆盖） */
+  --big-play-grad-start: var(--accent-color);
+  --big-play-grad-end: #6a82fb;
+
+  /* 稳定性语义颜色 */
+  --stability-stable: #10b981;
+  --stability-medium: #f59e0b;
+  --stability-unstable: #ef4444;
   transition: background .3s ease, color .3s ease, box-shadow .3s ease;
   /* 字体变量 */
   --font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --font-mono: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Source Code Pro", monospace;
+}
+/* 可访问性增强：键盘聚焦可见性 */
+:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* 尊重用户的减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 /* 1.4 主题变量（深色） */
 body.dark {
@@ -113,31 +157,6 @@ body::before {
 
 /* 强制所有文本元素使用统一字体 */
 * {
-  font-family: inherit;
-}
-
-body, button, input, select, textarea {
-  font-family: var(--font-system);
-}
-
-/* 确保所有特定元素也使用统一字体 */
-h1, h2, h3, h4, h5, h6,
-.panel-title, .control-label, .stat-label, .stat-value,
-.history-pitch, .history-result, .history-time,
-.dominant-pitch, .watermark-degree, .frequency-display,
-.interval-name, .interval-detail, .property-label, .property-value,
-.info-label, .info-value, .welcome-title, .welcome-subtitle, 
-.welcome-swipe-hint, .app-title, .toast, .key-change-toast {
-  font-family: var(--font-system);
-}
-
-/* 等宽字体用于频率显示和代码 */
-code, pre, .frequency-display {
-  font-family: var(--font-mono);
-}
-
-/* 确保按钮和输入框内的文字也使用统一字体 */
-button, input, select, textarea {
   font-family: var(--font-system);
 }
 /* =========================
@@ -180,7 +199,7 @@ body {
 }
 
 .left-panel {
-  grid-area: left-panel;
+
   height: calc(100vh - 60px);
   overflow-y: auto;
   background: var(--card);
@@ -196,14 +215,6 @@ body {
   align-items: flex-start;
   padding: 10px !important;
   box-sizing: border-box;
-}
-
-.right-panel {
-  grid-area: right-panel;
-  height: calc(100vh - 60px);
-  overflow-y: auto;
-  background: var(--card);
-  border-left: 1px solid var(--btn-sec);
 }
 
 /* 中央容器调整 */
@@ -299,7 +310,6 @@ h1 {
   font-size: 26px;
   font-weight: 700;
   color: var(--text);
-  font-family: var(--font-system);
 }
 
 h1 small {
@@ -317,14 +327,12 @@ button {
   font-size: 16px;
   cursor: pointer;
   transition: .25s;
-  font-family: var(--font-system);
 }
 
 /* 3.2 主要按钮 */
 .btn-primary {
-  background: linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%);
-  color: #fff;
-  font-family: var(--font-system);
+  background: linear-gradient(135deg, var(--btn-primary-start) 0%, var(--btn-primary-end) 100%);
+  color: var(--btn-primary-text);
 }
 .btn-primary:hover {
   transform: translateY(-2px);
@@ -366,7 +374,6 @@ button {
   color: var(--text);
   box-shadow: 0 4px 12px var(--shadow);
   transition: transform .3s ease;
-  font-family: var(--font-system);
 }
 
 .icon-btn:hover {
@@ -409,7 +416,6 @@ button:disabled,
   font-size: 14px;
   cursor: pointer;
   transition: background .2s;
-  font-family: var(--font-system);
 }
 
 .menuBtn:hover {
@@ -429,7 +435,7 @@ button:disabled,
   top: 0;
   bottom: 0;
   width: 3px;
-  background: (--accent-color);
+  background: var(--accent-color);
 }
 
 /* 复位按钮 */
@@ -588,20 +594,7 @@ body.dark #ans {
   gap: 0 !important;
 }
 
-@keyframes scaleFade {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.3); /* 放大程度可以调整 */
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
-}
+/* scaleFade 定义在稍后处已存在，这里移除重复定义以避免冲突 */
 
 
 /* 4.3 按钮悬停/按下/答对/答错效果 */
@@ -683,25 +676,6 @@ body.dark #ans {
   filter: none;
 }
 
-/* 按钮基础样式 */
-.key-btn {
-  cursor: pointer; /* 默认手型光标 */
-  transition: all 0.1s ease;
-}
-
-/* 禁用状态下的按钮 */
-.key-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed !important; /* 🚫 光标 */
-}
-
-.key-btn:disabled:hover {
-  background: var(--key-btn-bg) !important;
-  color: var(--key-btn-color) !important;
-  transform: none;
-  box-shadow: none;
-}
-
 /* 4.4 动画效果及唱名显示形式 */
 /* 答题区唱名显示样式 */
 .key-btn.accidental {
@@ -710,22 +684,16 @@ body.dark #ans {
 }
 
 /* 音级颜色边框提示 */
-.key-btn[data-degree="I"] { border-left: 4px solid #e74c3c; }
-.key-btn[data-degree="II"] { border-left: 4px solid #e67e22; }
-.key-btn[data-degree="III"] { border-left: 4px solid #f1c40f; }
-.key-btn[data-degree="IV"] { border-left: 4px solid #2ecc71; }
-.key-btn[data-degree="V"] { border-left: 4px solid #3498db; }
-.key-btn[data-degree="VI"] { border-left: 4px solid #9b59b6; }
-.key-btn[data-degree="VII"] { border-left: 4px solid #1abc9c; }
+.key-btn[data-degree="I"] { border-left: 4px solid var(--degree-I); }
+.key-btn[data-degree="II"] { border-left: 4px solid var(--degree-II); }
+.key-btn[data-degree="III"] { border-left: 4px solid var(--degree-III); }
+.key-btn[data-degree="IV"] { border-left: 4px solid var(--degree-IV); }
+.key-btn[data-degree="V"] { border-left: 4px solid var(--degree-V); }
+.key-btn[data-degree="VI"] { border-left: 4px solid var(--degree-VI); }
+.key-btn[data-degree="VII"] { border-left: 4px solid var(--degree-VII); }
 
 /* 动画效果 */
-@keyframes shake {
-    0% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    50% { transform: translateX(5px); }
-    75% { transform: translateX(-5px); }
-    100% { transform: translateX(0); }
-}
+/* shake 动画在文件稍后处已有定义，移除重复以减小体积并避免覆盖 */
 
 /* 4.5 网格布局调整（不同按键数量） */
 /* 8个按键的布局 - 1行8列 */
@@ -970,15 +938,9 @@ body.dark #ans {
     transition: width 0.3s ease;
 }
 
-/* 查看详情按钮样式 - 调整这里 */
-.view-details-section {
-    margin-top: 4px; /* 进一步减小上边距 */
-    padding-top: 8px; /* 减小内边距 */
-}
-
 .view-details-btn {
+    margin:8px 0;
     width: 100%;
-    padding: 10px 12px;
     background: var(--btn-sec);
     color: var(--text);
     border: none;
@@ -1029,12 +991,12 @@ body.dark .right-panel .stat-value {
 
 .history-item.correct {
   border-left-color: var(--accent-color);
-  background: rgba(0, 200, 83, 0.1);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 .history-item.incorrect {
-  border-left-color: #ff3d71;
-  background: rgba(255, 61, 113, 0.1);
+  border-left-color: var(--danger-strong);
+  background: rgba(var(--danger-strong, 255,61,113), 0.08);
 }
 
 .history-pitch {
@@ -1042,22 +1004,20 @@ body.dark .right-panel .stat-value {
   color: var(--text);
   font-size: 14px;
   flex: 1;
-  font-family: var(--font-system);
 }
 
 .history-result {
   font-weight: bold;
   font-size: 16px;
   margin: 0 12px;
-  font-family: var(--font-system);
 }
 
 .history-result.correct {
-  color: #00c853;
+  color: var(--success);
 }
 
 .history-result.incorrect {
-  color: #ff3d71;
+  color: var(--danger-strong);
 }
 
 .history-time {
@@ -1065,7 +1025,6 @@ body.dark .right-panel .stat-value {
   color: var(--sub);
   min-width: 50px;
   text-align: right;
-  font-family: var(--font-system);
 }
 
 /* 5.4 音量控制样式及滑块样式，含移动端适配 */
@@ -1452,7 +1411,7 @@ input[type="checkbox"][id="enableScalePlayback"] {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
-  border: 2px solid #ff4444;
+  border: 2px solid var(--danger);
   border-radius: 3px;
   background: var(--card);
   cursor: pointer;
@@ -1462,8 +1421,8 @@ input[type="checkbox"][id="enableScalePlayback"] {
 
 input[type="checkbox"][id="autoNextCheckbox"]:checked,
 input[type="checkbox"][id="enableScalePlayback"]:checked {
-  background: #ff4444;
-  border-color: #ff4444;
+  background: var(--danger);
+  border-color: var(--danger);
 }
 
 input[type="checkbox"][id="autoNextCheckbox"]:checked::before,
@@ -1481,13 +1440,13 @@ input[type="checkbox"][id="enableScalePlayback"]:checked::before {
 body.dark input[type="checkbox"][id="autoNextCheckbox"],
 body.dark input[type="checkbox"][id="enableScalePlayback"] {
   background: var(--btn-sec);
-  border-color: #ff6666;
+  border-color: var(--danger);
 }
 
 body.dark input[type="checkbox"][id="autoNextCheckbox"]:checked,
 body.dark input[type="checkbox"][id="enableScalePlayback"]:checked {
-  background: #ff4444;
-  border-color: #ff4444;
+  background: var(--danger);
+  border-color: var(--danger);
 }
 
 /*7.自动下一题*/
@@ -1525,7 +1484,6 @@ body.dark input[type="checkbox"][id="enableScalePlayback"]:checked {
   transition: all 0.3s ease;
   flex-shrink: 0;
   cursor: pointer;
-  font-family: var(--font-system);
 }
 
 .time-slider:hover {
@@ -1662,7 +1620,6 @@ input[type="checkbox"][id="enableScalePlayback"]:checked::before {
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
-  font-family: var(--font-system);
 }
 
 .toast.show {
@@ -1703,6 +1660,18 @@ button:disabled {
    8. 其它补充样式与特殊规则
 ========================= */
 
+.left-panel {
+  grid-area: left-panel;
+  position: fixed;
+  top: 60px;
+  left: 0;
+  height: calc(100vh - 60px);
+  background: var(--card);
+  border-right: 1px solid var(--btn-sec);
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 900;
+}
 /* 8.1 左侧面板例外规则 */
 .left-panel .control-group {
   background: transparent !important;
@@ -1735,11 +1704,10 @@ button:disabled {
 
 /* 8.2 右侧面板样式 */
 .right-panel {
-    display: block;
+    grid-area: right-panel;
     position: fixed;
     top: 60px;
     right: 0;
-    width: 280px;
     height: calc(100vh - 60px);
     background: var(--card);
     border-left: 1px solid var(--btn-sec);
@@ -1747,7 +1715,7 @@ button:disabled {
     overflow-y: auto;
     z-index: 900;
     transition: transform 0.3s ease;
-    
+    width: 280px;
 }
 
 /* 8.3 主内容区和卡片内容 */
@@ -1762,7 +1730,7 @@ button:disabled {
   height: 200px;
   min-height: 200px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-color) 0%, #6a82fb 100%);
+  background: linear-gradient(135deg, var(--big-play-grad-start) 0%, var(--big-play-grad-end) 100%);
   border: none;
   color: white;
   display: flex;
@@ -1901,9 +1869,8 @@ body.dark .big-play-button:hover {
   font-size: 24px;
   font-weight: 600;
   color: var(--text);
-  margin: 16px 0 8px;
+  margin: 16px 0 16px;
   min-height:36px;
-  font-family: var(--font-system);
 }
 #autoNextCheckbox {
   accent-color: var(--accent-color);
@@ -1917,44 +1884,6 @@ body.dark .big-play-button:hover {
    9. 响应式设计与兼容性补充
 ========================= */
 
-/* 9.1 超大屏幕 (1920px以上) */
-@media (min-width: 1921px) {
-  .central-container {
-    left: 280px;
-    right: 280px;
-  }
-  
-  .left-panel,
-  .right-panel {
-    width: 280px;
-  }
-}
-
-/* 9.2 大桌面端 (1600px-1920px) */
-@media (max-width: 1920px) and (min-width: 1601px) {
-  .central-container {
-    left: 280px;
-    right: 280px;
-  }
-  
-  .left-panel,
-  .right-panel {
-    width: 280px;
-  }
-}
-
-/* 9.3 标准桌面端 (1201px-1600px) - 默认布局 */
-@media (max-width: 1600px) and (min-width: 1201px) {
-  .central-container {
-    left: 280px;
-    right: 280px;
-  }
-  
-  .left-panel,
-  .right-panel {
-    width: 280px;
-  }
-}
 
 /* 9.9 平滑过渡效果 */
 .central-container,
@@ -2006,7 +1935,6 @@ body.dark .big-play-button:hover {
   padding-bottom: 8px;
   border-bottom: 1px solid var(--btn-sec);
   color: var(--text);
-  font-family: var(--font-system);
 }
 
 .panel-controls {
@@ -2107,7 +2035,6 @@ body.dark .big-play-button:hover {
   font-weight: 600;
   color: var(--sub);
   margin: 0;
-  font-family: var(--font-system);
 }
 
 .card-content {
@@ -2123,14 +2050,12 @@ body.dark .big-play-button:hover {
   color: var(--accent-color);
   text-align: center;
   margin-bottom: 4px;
-  font-family: var(--font-system);
 }
 
 .sub-value {
   font-size: 12px;
   color: var(--sub);
   text-align: center;
-  font-family: var(--font-system);
 }
 
 /* 信息项 */
@@ -2239,7 +2164,7 @@ body.dark .big-play-button:hover {
   margin-top: 10px;
   font-size: 14px;
   color: var(--sub) !important;
-  font-family: var(--font-system);
+
 }
 
 /* 模态框样式 */
@@ -2415,7 +2340,6 @@ body.dark .big-play-button:hover {
   margin-bottom: 4px;
   line-height: 1;
   letter-spacing: -1.5px;
-  font-family: var(--font-system);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   display: block;
@@ -2430,7 +2354,6 @@ body.dark .big-play-button:hover {
   font-weight: 400;
   letter-spacing: 0.5px;
   display: block;
-  font-family: var(--font-system);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -2582,12 +2505,9 @@ body.dark .frequency-display {
   }
 }
 
-
 /* =========================
    音程界面显示样式
 ========================= */
-
-
 
 .property-group {
   display: flex;
@@ -2624,15 +2544,15 @@ body.dark .frequency-display {
 
 /* 稳定性颜色 */
 .stability-stable {
-  color: #10b981 !important;
+  color: var(--stability-stable) !important;
 }
 
 .stability-medium {
-  color: #f59e0b !important;
+  color: var(--stability-medium) !important;
 }
 
 .stability-unstable {
-  color: #ef4444 !important;
+  color: var(--stability-unstable) !important;
 }
 
 
@@ -2754,7 +2674,6 @@ body.dark .frequency-display {
     background: var(--card);
     color: var(--text);
     font-size: 0.85rem;
-    font-family: var(--font-system);
     height: 32px;
     text-align: center;
 }
@@ -2876,7 +2795,7 @@ body.dark .frequency-display {
         font-size: 0.75rem;
         height: 28px;
     }
-    
+  
     .uke-right-section {
         gap: 12px;
     }
@@ -3106,7 +3025,6 @@ body.dark .welcome-swipe-hint {
   white-space: normal;
   word-wrap: break-word;
   max-width: 100%;
-  font-family: var(--font-system);
 }
 
 /* 确保内容区域正确显示 */
@@ -3234,15 +3152,15 @@ body.dark .welcome-swipe-hint {
 
 /* 稳定性颜色类 */
 .stability-stable {
-  color: #10b981 !important;
+  color: var(--stability-stable) !important;
 }
 
 .stability-medium {
-  color: #f59e0b !important;
+  color: var(--stability-medium) !important;
 }
 
 .stability-unstable {
-  color: #ef4444 !important;
+  color: var(--stability-unstable) !important;
 }
 
 /* 移动端适配 */
@@ -3318,8 +3236,8 @@ body.dark .welcome-swipe-hint {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: white !important;
-  color: #000 !important;
+  background: var(--toast-bg) !important;
+  color: var(--toast-text) !important;
   padding: 12px 24px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -3329,7 +3247,7 @@ body.dark .welcome-swipe-hint {
   pointer-events: none;
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--toast-border);
 }
 
 .toast.show, .key-change-toast {
@@ -3341,8 +3259,8 @@ body.dark .welcome-swipe-hint {
   top: 20px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  background: white !important;
-  color: #000 !important;
+  background: var(--toast-bg) !important;
+  color: var(--toast-text) !important;
   padding: 12px 24px !important;
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
@@ -3351,14 +3269,14 @@ body.dark .welcome-swipe-hint {
   transition: opacity 0.3s ease !important;
   font-size: 14px !important;
   font-weight: 500 !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid var(--toast-border) !important;
   animation: fadeInOut 2s ease-in-out forwards !important;
 }
 
-/* 确保暗色模式下也是白底黑字 */
+/* 确保暗色模式下使用相同变量，便于统一主题控制 */
 body.dark .toast,
 body.dark .key-change-toast {
-  background: white !important;
-  color: #000 !important;
-  border-color: #e5e7eb !important;
+  background: var(--toast-bg) !important;
+  color: var(--toast-text) !important;
+  border-color: var(--toast-border) !important;
 }
