@@ -10,7 +10,7 @@
 <script type="module" src="modules/core/boot.js"></script>
 
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="stylesheet" href="modules/modes/start-screen.css">
 <link rel="stylesheet" href="modules/ui/stats-modal.css">
 <style>
@@ -35,7 +35,6 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--text);
-    font-family: var(--font-system);
 }
 
 .app-title small {
@@ -57,26 +56,9 @@
     display: none !important;
 }
 
-/* 启用左侧面板 */
-.left-panel {
-    display: block;
-    position: fixed;
-    top: 60px;
-    left: 0;
-    width: 280px;
-    height: calc(100vh - 60px);
-    background: var(--card);
-    border-right: 1px solid var(--btn-sec);
-    padding: 20px;
-    overflow-y: auto;
-    z-index: 900;
-}
-
 .panel-section {
     margin-bottom: 24px;
 }
-
-
 
 .control-group {
     margin-bottom: 16px;
@@ -90,7 +72,6 @@
     color: var(--text);
     padding-bottom: 4px;
     border-bottom: 1px solid var(--btn-sec);
-    font-family: var(--font-system);
 }
 
 /* 修改音域按钮组样式 - 三个按钮连在一起 */
@@ -393,11 +374,11 @@ select {
     background: var(--card);
     color: var(--text);
     font-size: 14px;
-    font-family: var(--font-system);
 }
 
 /* 按钮样式 */
 .btn-secondary {
+    margin: 8px 0px;
     padding: 8px 16px;
     background: var(--btn-sec);
     color: var(--text);
@@ -406,7 +387,6 @@ select {
     cursor: pointer;
     transition: all 0.2s;
     font-size: 14px;
-    font-family: var(--font-system);
 }
 
 .btn-secondary:hover {
@@ -477,10 +457,6 @@ select {
 
 
 </style>
-<script>
-    // 腾讯云环境配置
-    window.TCB_ENV = "cloud1-1gjdagdx9419c0e8";
-</script>
 </head>
 <body>
 <!-- 开始屏幕覆盖层 -->
@@ -493,19 +469,19 @@ select {
 
         <div class="mode-selection">
             <!-- 标准模式卡片 -->
-            <div class="mode-card" data-mode="standard">
-                <div class="mode-icon">🎹</div>
-                <div class="mode-content">
-                    <h3>标准模式</h3>
-                    <p>自由练习，随心设置调性、音域和难度</p>
-                    <ul class="mode-features">
-                        <li>• 完整的自定义设置</li>
-                        <li>• 渐进式难度调整</li>
-                        <li>• 实时反馈和统计</li>
-                    </ul>
-                </div>
-                <button class="select-mode-btn">进入练习</button>
-            </div>
+<div class="mode-card active" data-mode="standard"> 
+    <div class="mode-icon">🎹</div>
+    <div class="mode-content">
+        <h3>标准模式</h3>
+        <p>随心设置调性、音域和难度</p>
+        <ul class="mode-features">
+            <li>• 完整的自定义设置</li>
+            <li>• 渐进式难度调整</li>
+            <li>• 实时反馈和统计</li>
+        </ul>
+    </div>
+    <button class="select-mode-btn">进入练习</button>
+</div>
 
             <!-- 挑战模式卡片 -->
             <div class="mode-card" data-mode="challenge">
@@ -527,7 +503,7 @@ select {
                 <div class="mode-icon">🎯</div>
                 <div class="mode-content">
                     <h3>专项训练</h3>
-                    <p>智能分析薄弱环节，针对性强化训练</p>
+                    <p>分析薄弱环节，针对性强化训练</p>
                     <ul class="mode-features">
                         <li>• 基于数据的智能推荐</li>
                         <li>• 个性化训练计划</li>
@@ -536,8 +512,23 @@ select {
                 </div>
                 <button class="select-mode-btn">定制训练</button>
             </div>
-        </div>
 
+            <!-- 导航代码 -->
+             <div class="mobile-cards-nav">
+    <button class="nav-arrow nav-prev" aria-label="上一个">
+        ＜
+    </button>
+    <div class="nav-indicator">
+        <span class="nav-current">1</span>
+        <span class="nav-separator">/</span>
+        <span class="nav-total">3</span>
+    </div>
+    <button class="nav-arrow nav-next" aria-label="下一个">
+        ＞
+    </button>
+</div>
+        </div>
+        <!-- 统计数据 -->
         <div class="start-footer">
             <div class="quick-stats">
                 <div class="stat">
@@ -660,7 +651,7 @@ select {
         <div id="msg" style="display: block;">点击开始训练</div>
         
         <!-- 添加键盘提示 -->
-        <div class="keyboard-hint" style="font-size: 12px; color: var(--sub); margin-top: 8px;">
+        <div class="keyboard-hint" style="font-size: 12px; color: var(--sub);">
             空格键播放 · R键复位
         </div>
         
@@ -846,15 +837,14 @@ select {
                     <span class="stat-label">最高连击:</span>
                     <span class="stat-value" id="maxStreak-label">0连胜</span>
                 </div>
+                <button id="viewDetailsBtn" class="view-details-btn">
+                    📈 查看详细信息
+                </button>
             </div>
         </div>
 
-        <!-- 查看详情按钮 -->
-        <div class="view-details-section">
-            <button id="viewDetailsBtn" class="view-details-btn">
-                📈 查看详细信息
-            </button>
-        </div>
+            
+       
     </div>
 
     <!-- 历史记录 -->
@@ -921,5 +911,4 @@ select {
     });
     </script>
 </body>
-
 </html>
