@@ -1,4 +1,3 @@
-// modules/modes/start-screen.js
 import { AppState } from '../core/state.js';
 import statsManager from '../quiz/stats-manager.js';
 import { StandardMode } from './standard-mode.js';
@@ -10,13 +9,20 @@ export class StartScreenManager {
         this.standardMode = new StandardMode();
         this.challengeMode = new ChallengeMode();
         this.focusedTraining = new FocusedTraining();
+        this.prevHandler = null;
+        this.nextHandler = null;
         this.init();
     }
 
     init() {
         this.bindEvents();
         this.loadQuickStats();
+        this.initMobileCardsNavigation();
         
+        window.addEventListener('resize', () => {
+        this.initMobileCardsNavigation();
+    });
+    
         // 初始化模式状态
         AppState.mode = {
             current: 'start',
@@ -24,6 +30,122 @@ export class StartScreenManager {
             sessionStart: null
         };
     }
+
+initMobileCardsNavigation() {
+    console.log('=== 开始初始化移动端卡片导航 ===');
+    
+    // 🚨 先移除旧的事件监听器（防止重复绑定）
+    if (this.prevHandler) {
+        document.querySelector('.nav-prev')?.removeEventListener('click', this.prevHandler);
+    }
+    if (this.nextHandler) {
+        document.querySelector('.nav-next')?.removeEventListener('click', this.nextHandler);
+    }
+
+    const cards = document.querySelectorAll('.mode-card');
+    const prevBtn = document.querySelector('.nav-prev');
+    const nextBtn = document.querySelector('.nav-next');
+    const currentSpan = document.querySelector('.nav-current');
+    const totalSpan = document.querySelector('.nav-total');
+    
+    console.log('窗口宽度:', window.innerWidth);
+    console.log('找到卡片数量:', cards.length);
+    console.log('找到上一个按钮:', !!prevBtn);
+    console.log('找到下一个按钮:', !!nextBtn);
+    
+    // 只在768px以下初始化
+    if (window.innerWidth > 768) {
+        console.log('桌面端，跳过卡片导航初始化');
+        // 确保桌面端所有卡片都显示
+        document.querySelectorAll('.mode-card').forEach(card => {
+            card.style.display = 'flex';
+            card.style.opacity = '1';
+            card.style.visibility = 'visible';
+            card.style.position = '';
+            card.style.top = '';
+            card.style.left = '';
+            card.style.transform = '';
+            card.style.width = '';
+        });
+        // 隐藏导航
+        const nav = document.querySelector('.mobile-cards-nav');
+        if (nav) nav.style.display = 'none';
+        return;
+    }
+    
+    const nav = document.querySelector('.mobile-cards-nav');
+    if (nav) nav.style.display = 'flex';
+    
+    if (!cards.length || !prevBtn || !nextBtn) {
+        console.error('❌ 导航元素未找到！');
+        return;
+    }
+    
+    let currentIndex = 0;
+    const totalCards = cards.length;
+    
+    // 设置总页数
+    if (totalSpan) totalSpan.textContent = totalCards;
+    
+    const updateCards = () => {
+        console.log('切换到卡片:', currentIndex);
+        
+        cards.forEach((card, index) => {
+            if (index === currentIndex) {
+                card.classList.add('active');
+                card.style.display = 'flex';
+                card.style.opacity = '1';
+                card.style.visibility = 'visible';
+                console.log('✅ 显示卡片:', index);
+            } else {
+                card.classList.remove('active');
+                card.style.display = 'none';
+                card.style.opacity = '0';
+                card.style.visibility = 'hidden';
+            }
+        });
+        
+        // 更新按钮状态
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex === totalCards - 1;
+        
+        // 更新页码
+        if (currentSpan) currentSpan.textContent = currentIndex + 1;
+        
+        console.log('按钮状态 - 上一个:', prevBtn.disabled, '下一个:', nextBtn.disabled);
+    };
+    
+    // 🚨 保存事件处理器引用
+    this.prevHandler = () => {
+        console.log('点击上一个按钮');
+        if (currentIndex > 0) {
+            currentIndex--;
+            updateCards();
+        }
+    };
+    
+    this.nextHandler = () => {
+        console.log('点击下一个按钮');
+        if (currentIndex < totalCards - 1) {
+            currentIndex++;
+            updateCards();
+        }
+    };
+    
+    // 绑定事件
+    prevBtn.addEventListener('click', this.prevHandler);
+    nextBtn.addEventListener('click', this.nextHandler);
+    
+    // 键盘支持（保持原有逻辑）
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') prevBtn.click();
+        if (e.key === 'ArrowRight') nextBtn.click();
+    });
+    
+    // 初始化显示
+    updateCards();
+    console.log('=== 移动端卡片导航初始化完成 ===');
+}
 
     bindEvents() {
         // 模式选择按钮事件
