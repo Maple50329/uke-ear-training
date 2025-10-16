@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>钢琴随机音听辨（尤克里里 23寸 18品）</title>
+<script src="js/Tone.js"></script>
+<script type="module" src="modules/core/config.js"></script>
+<script type="module" src="main.js"></script>
+<script type="module" src="modules/core/boot.js"></script>
+
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="modules/modes/start-screen.css">
+<link rel="stylesheet" href="modules/ui/stats-modal.css">
+<style>
+/* 启用顶部标题栏 */
+.daw-header {
+    display: flex;
+    background: var(--card);
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--btn-sec);
+    box-shadow: 0 2px 10px var(--shadow);
+    height: 60px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.app-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.app-title small {
+    font-size: 14px;
+    color: var(--sub);
+    font-weight: 400;
+    margin-left: 8px;
+}
+
+.header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    position: relative;
+}
+
+/* 隐藏原有的底部按钮组 */
+.btn-group {
+    display: none !important;
+}
+
+.panel-section {
+    margin-bottom: 24px;
+}
+
+.control-group {
+    margin-bottom: 16px;
+}
+
+.control-label {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--btn-sec);
+}
+
+/* 修改音域按钮组样式 - 三个按钮连在一起 */
+.range-buttons {
+    display: flex;
+    margin-bottom: 12px;
+    background: var(--btn-sec);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--btn-sec);
+}
+
+.range-btn, .mode-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: var(--btn-sec);
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-size: 13px;
+    position: relative;
+}
+
+/* 移除按钮之间的间隔 */
+.range-btn {
+    margin: 0;
+    border-radius: 0;
+}
+
+/* 第一个按钮左边圆角 */
+.range-btn:first-child {
+    border-top-left-radius: 7px;
+    border-bottom-left-radius: 7px;
+}
+
+/* 最后一个按钮右边圆角 */
+.range-btn:last-child {
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 7px;
+}
+
+/* 按钮之间的分隔线 */
+.range-btn:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60%;
+    width: 1px;
+    background: var(--btn-sec-h);
+}
+
+/* 基准音设置的两个按钮样式 */
+.mode-buttons {
+    display: flex !important;
+    margin-bottom: 12px !important;
+    width: 66.66% !important;
+}
+
+.mode-btn {
+    margin: 0;
+    border-radius: 0;
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: var(--btn-sec);
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-size: 13px;
+    position: relative;
+}
+
+/* 第一个模式按钮左边圆角 */
+.mode-btn:first-child {
+    border-top-left-radius: 7px;
+    border-bottom-left-radius: 7px;
+}
+
+/* 最后一个模式按钮右边圆角 */
+.mode-btn:last-child {
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 7px;
+}
+
+/* 模式按钮之间的分隔线 */
+.mode-btn:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60%;
+    width: 1px;
+    background: var(--btn-sec-h);
+}
+
+.range-btn.active, .mode-btn.active {
+    background: var(--accent-color);
+    color: white;
+}
+
+/* 激活状态下移除分隔线 */
+.range-btn.active::after,
+.range-btn.active + .range-btn::after,
+.mode-btn.active::after,
+.mode-btn.active + .mode-btn::after {
+    display: none;
+}
+
+
+/* 确保标题栏中的图标按钮样式正确 */
+.daw-header .icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--btn-sec);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.daw-header .icon-btn:hover {
+    background: var(--btn-sec-h);
+}
+
+/* 音量控制样式 */
+.daw-header .volume-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 32px;
+}
+
+.daw-header .volume-slider-container {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--card);
+    padding: 12px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px var(--shadow);
+    border: 1px solid var(--btn-sec);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.daw-header .volume-control:hover .volume-slider-container {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.daw-header .volume-control.hide-slider .volume-slider-container {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateX(-50%) translateY(-10px) !important;
+}
+
+.daw-header #volumeSlider {
+    width: 90px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--btn-sec);
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    margin: 0 auto;
+}
+
+/* Webkit 浏览器 (Chrome, Safari, Edge Chromium) */
+.daw-header #volumeSlider::-webkit-slider-track {
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--btn-sec);
+    border: none;
+}
+
+.daw-header #volumeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    border: 2px solid var(--card);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    margin-top: -5.5px;
+}
+
+/* Firefox */
+.daw-header #volumeSlider::-moz-range-track {
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--btn-sec);
+    border: none;
+}
+
+.daw-header #volumeSlider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    border: 2px solid var(--card);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: none;
+}
+
+.daw-header #volumeSlider::-webkit-slider-track {
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--btn-sec);
+    border: none;
+}
+
+.daw-header #volumeSlider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    border: 2px solid var(--card);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    margin-top: -5.5px;
+}
+
+.daw-header .volume-slider-container::after {
+    content: attr(data-volume);
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: var(--sub);
+    font-weight: 500;
+    width: 100%;
+    position: absolute;
+    bottom: -18px;
+    left: 0;
+}
+
+/* 隐藏卡片内重复的设置项 */
+#card .reference-controls .control-row:first-child,
+#card .reference-controls .control-row:nth-child(2) {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .key-btn {
+        padding: 20px 6px !important;
+        font-size: 1.6rem !important;
+        min-height: 70px !important;
+    }
+}
+
+/* 确保模态框在标题栏之上 */
+#rangeModal,
+#settingsModal {
+    z-index: 1001;
+}
+
+#rangeMask,
+#settingsMask {
+    z-index: 1000;
+}
+
+/* 暂时保持其他组件隐藏 */
+.status-bar {
+    display: none;
+}
+
+/* 选择框样式 */
+select {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--btn-sec);
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+}
+
+/* 按钮样式 */
+.btn-secondary {
+    margin: 8px 0px;
+    padding: 8px 16px;
+    background: var(--btn-sec);
+    color: var(--text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.btn-secondary:hover {
+    background: var(--btn-sec-h);
+}
+
+/* 基准音设置按钮样式 */
+.left-panel .mode-buttons {
+    display: flex !important;
+    margin-bottom: 12px !important;
+    width: 100% !important; 
+    background: var(--btn-sec) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--btn-sec) !important;
+}
+
+.left-panel .mode-btn {
+    flex: 1 !important;
+    padding: 10px !important;
+    border: none !important;
+    background: var(--btn-sec) !important;
+    color: var(--text) !important;
+    cursor: pointer !important;
+    text-align: center !important;
+    transition: all 0.2s !important;
+    font-size: 13px !important;
+    position: relative !important;
+    border-radius: 0 !important; /* 移除圆角 */
+    margin: 0 !important;
+}
+
+/* 第一个模式按钮左边圆角 */
+.left-panel .mode-btn:first-child {
+    border-top-left-radius: 7px !important;
+    border-bottom-left-radius: 7px !important;
+}
+
+/* 最后一个模式按钮右边圆角 */
+.left-panel .mode-btn:last-child {
+    border-top-right-radius: 7px !important;
+    border-bottom-right-radius: 7px !important;
+}
+
+/* 模式按钮之间的分隔线 */
+.left-panel .mode-btn:not(:last-child)::after {
+    content: '' !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    height: 60% !important;
+    width: 1px !important;
+    background: var(--btn-sec-h) !important;
+}
+
+.left-panel .mode-btn.active {
+    background: var(--accent-color) !important;
+    color: white !important;
+}
+
+/* 激活状态下移除分隔线 */
+.left-panel .mode-btn.active::after,
+.left-panel .mode-btn.active + .mode-btn::after 
+{
+    display: none !important;
+}
+
+
+</style>
+</head>
+<body>
+<!-- 开始屏幕覆盖层 -->
+<div id="startScreen" class="start-screen active">
+    <div class="start-container">
+        <div class="app-brand">
+            <h1>🎵 单音听辨训练器</h1>
+            <p>提升音乐感知能力，从精准听辨开始</p>
+        </div>
+
+        <div class="mode-selection">
+            <!-- 标准模式卡片 -->
+<div class="mode-card active" data-mode="standard"> 
+    <div class="mode-icon">🎹</div>
+    <div class="mode-content">
+        <h3>标准模式</h3>
+        <p>随心设置调性、音域和难度</p>
+        <ul class="mode-features">
+            <li>• 完整的自定义设置</li>
+            <li>• 渐进式难度调整</li>
+            <li>• 实时反馈和统计</li>
+        </ul>
+    </div>
+    <button class="select-mode-btn">进入练习</button>
+</div>
+
+            <!-- 挑战模式卡片 -->
+            <div class="mode-card" data-mode="challenge">
+                <div class="mode-icon">⚡</div>
+                <div class="mode-content">
+                    <h3>挑战模式</h3>
+                    <p>限时挑战，测试你的听辨极限</p>
+                    <ul class="mode-features">
+                        <li>• 时间限制和分数系统</li>
+                        <li>• 逐步提升的难度曲线</li>
+                        <li>• 成就和排行榜</li>
+                    </ul>
+                </div>
+                <button class="select-mode-btn">开始挑战</button>
+            </div>
+
+            <!-- 专项训练卡片 -->
+            <div class="mode-card" data-mode="focused">
+                <div class="mode-icon">🎯</div>
+                <div class="mode-content">
+                    <h3>专项训练</h3>
+                    <p>分析薄弱环节，针对性强化训练</p>
+                    <ul class="mode-features">
+                        <li>• 基于数据的智能推荐</li>
+                        <li>• 个性化训练计划</li>
+                        <li>• 进步追踪和报告</li>
+                    </ul>
+                </div>
+                <button class="select-mode-btn">定制训练</button>
+            </div>
+
+            <!-- 导航代码 -->
+             <div class="mobile-cards-nav">
+    <button class="nav-arrow nav-prev" aria-label="上一个">
+        ＜
+    </button>
+    <div class="nav-indicator">
+        <span class="nav-current">1</span>
+        <span class="nav-separator">/</span>
+        <span class="nav-total">3</span>
+    </div>
+    <button class="nav-arrow nav-next" aria-label="下一个">
+        ＞
+    </button>
+</div>
+        </div>
+        <!-- 统计数据 -->
+        <div class="start-footer">
+            <div class="quick-stats">
+                <div class="stat">
+                    <span class="stat-number" id="totalSessions">0</span>
+                    <span class="stat-label">总练习次数</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="currentStreak-num">0</span>
+                    <span class="stat-label">连续练习天数</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="bestAccuracy">0%</span>
+                    <span class="stat-label">最佳准确率</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="layout-grid-container">
+<!-- 顶部标题栏 -->
+<header class="daw-header">
+<div class="header-left">
+        <button id="returnToStart" class="icon-btn" title="返回开始屏幕 (ESC)" style="display: none;">
+            🏠
+        </button>
+        <div class="app-title" style="cursor: pointer;" title="点击返回开始屏幕">
+            单音听辨训练器 <small>提升音乐感知能力，从精准听辨开始</small>
+        </div>
+    </div>
+    <div class="header-controls">
+        <button id="themeToggle" class="icon-btn" title="切换日/夜模式">
+            <span class="icon sun">☀️</span>
+            <span class="icon moon">🌙</span>
+        </button>
+        <!-- 音量控制 -->
+        <div class="volume-control">
+            <button id="volumeToggle" class="icon-btn" title="音量控制">🔊</button>
+            <div class="volume-slider-container">
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.7">
+            </div>
+        </div>
+
+        <button id="resetQuestionBtn" class="icon-btn" title="复位当前题目（R键）">🔄</button>
+        <button id="settingsBtn" class="icon-btn" title="设置">⚙️</button>
+    </div>
+</header>
+<!-- 左侧设置面板 -->
+<aside class="left-panel">
+    <div class="panel-section">
+        <h3 class="panel-title">音域设置</h3>
+        <div class="range-buttons">
+            <button class="range-btn active" data-range="low">小字组</button>
+            <button class="range-btn" data-range="mid">小字一组</button>
+        </div>
+    </div>
+
+    <div class="panel-section">
+        <h3 class="panel-title">基准音设置</h3>
+        <div class="control-group">
+        <!-- 直接保留这个div和里面的按钮 -->
+        <div class="mode-buttons">
+            <button class="mode-btn active" data-mode="c">固定C</button>
+            <button class="mode-btn" data-mode="a">固定A</button>
+        </div>
+    </div>
+        
+        <div class="control-group">
+            <label class="control-label">调性</label>
+            <select id="keySelect">
+                <option value="C">C调</option>
+                <option value="D">D调</option>
+                <option value="E">E调</option>
+                <option value="F">F调</option>
+                <option value="G">G调</option>
+                <option value="A">A调</option>
+                <option value="B">B调</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">难度</label>
+            <select id="difficultySelect">
+                <option value="basic">仅基本音级</option>
+                <option value="extended">含变化音级</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="panel-section">
+        <h3 class="panel-title">播放选项</h3>
+        <div class="checkbox-option">
+            <input type="checkbox" id="autoNextCheckbox">
+            <label for="autoNextCheckbox">自动下一音</label>
+            <input type="range" id="infoDisplayTime" min="1" max="5" value="3" class="time-slider" disabled>
+            <span id="timeDisplay" style="opacity: 0.5; color: var(--text);">3秒</span>
+        </div>
+        <div class="checkbox-option">
+            <input type="checkbox" id="enableScalePlayback" checked>
+            <label for="enableScalePlayback">先播放音阶</label>
+        </div>
+    </div>
+    <div class="panel-section">
+        <h3 class="panel-title">自定义采样</h3>
+        <button id="customBtn" class="btn-secondary" style="width:100%;margin-bottom:8px;">自定义采样</button>
+        <button id="resetBtn" class="btn-secondary" style="width:100%;">恢复默认采样</button>
+        <input type="file" id="fileIn" multiple accept="audio/*" style="display:none">
+        <div id="samplingStatus" style="margin-top:12px;font-size:12px;color:var(--sub); display: none;">
+        </div>
+    </div>
+</aside>
+<!-- 中央主区域 -->
+<main class="main-content">
+    <div class="central-container">
+        <!-- 大播放按钮 -->
+        <div id="big-play-btn" class="big-play-button">
+            <div class="big-play-icon icon-play"></div>
+        </div>
+    
+        <!-- 消息显示 -->
+        <div id="msg" style="display: block;">点击开始训练</div>
+        
+        <!-- 添加键盘提示 -->
+        <div class="keyboard-hint" style="font-size: 12px; color: var(--sub);">
+            空格键播放 · R键复位
+        </div>
+        
+        <div id="statusBox"></div>
+        <button id="startBtn" class="btn-primary" style="display: none;">播放题目</button>
+        <div id="ans"></div>
+    </div>
+
+        <!-- 浮动面板 -->
+<div id="simplePanel" class="simple-panel">
+        <div class="panel-header">
+        <div class="panel-title">音高信息</div>
+        <div class="panel-controls">
+            <button class="panel-close" title="关闭面板">✕</button>
+        </div>
+    </div>
+    
+        <!-- 滑动容器 -->
+        <div class="swipe-container">
+<!-- 音高页面 -->
+<div class="swipe-page active" id="pitch-page">
+    <div class="welcome-overlay active">
+        <div class="welcome-icon">🎵</div>
+        <h3 class="welcome-title">听音辨识</h3>
+        <p class="welcome-subtitle">探索音乐的世界，提升听音能力</p>
+        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
+    </div>
+    
+    <div class="pitch-content">
+        <span class="dominant-pitch" id="currentPitch"></span>
+        <span class="watermark-degree" id="currentDegree"></span>
+        <span class="frequency-display" id="currentFrequency"></span>
+    </div>
+</div>
+
+<!-- 音程页面 -->
+<div class="swipe-page" id="interval-page">
+    <div class="welcome-overlay active">
+        <div class="welcome-icon">🎶</div>
+        <h3 class="welcome-title">音程分析</h3>
+        <p class="welcome-subtitle">了解音符之间的和谐关系</p>
+        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
+    </div>
+    
+    <div class="interval-content">
+        <div class="interval-name" id="intervalName">--</div>
+        <div class="interval-detail" id="intervalDetail">--</div>
+        <div class="interval-properties">
+            <div class="property-group">
+                <div class="property-row">
+                    <span class="property-label">稳定性</span>
+                    <span class="property-value" id="intervalStability">--</span>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">解决倾向</span>
+                    <span class="property-value" id="intervalTendency">--</span>
+                </div>
+            </div>
+            <div class="property-group">
+                <div class="property-row">
+                    <span class="property-label">音程性质</span>
+                    <span class="property-value" id="intervalNature">--</span>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">色彩特征</span>
+                    <span class="property-value" id="intervalColor">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 尤克里里页面 -->
+<div class="swipe-page" id="ukulele-page">
+    <div class="welcome-overlay active">
+        <div class="welcome-icon">🎸</div>
+        <h3 class="welcome-title">尤克里里指位</h3>
+        <p class="welcome-subtitle">探索音高的多种按法</p>
+        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
+    </div>
+    
+    <div class="ukulele-content">
+        <!-- 主要信息区域 - 左右布局 -->
+        <div class="uke-main-info">
+            <!-- 左侧：音名信息 + 下拉框 -->
+            <div class="uke-left-section">
+                <div class="uke-note-section">
+                    <div class="uke-note-name">
+                        <span class="uke-note" id="ukeNoteName">--</span>
+                        <span class="uke-note-type" id="ukeNoteType">--</span>
+                    </div>
+                </div>
+                <!-- 调性选择器放在音名正下方 -->
+                <div class="uke-key-selector">
+                    <select id="ukeKeySelect" class="uke-key-dropdown">
+                        <option value="C">C调</option>
+                        <option value="D">D调</option>
+                        <option value="E">E调</option>
+                        <option value="F">F调</option>
+                        <option value="G">G调</option>
+                        <option value="A">A调</option>
+                        <option value="B">B调</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- 右侧：指位信息 -->
+            <div class="uke-right-section">
+                <!-- 常用指位 -->
+                <div class="uke-position-group">
+                    <div class="position-label">常用指位</div>
+                    <div class="position-values" id="ukeCommonPositions">--</div>
+                </div>
+                
+                <!-- 高把位指位 -->
+                <div class="uke-position-group">
+                    <div class="position-label">高把位指位</div>
+                    <div class="position-values" id="ukeHighPositions">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 底部：和弦信息 -->
+        <div class="uke-chords-section">
+            <div class="chords-label">相关和弦：</div>
+            <div class="chords-values" id="ukeRelatedChords">--</div>
+        </div>
+    </div>
+</div>
+    <!-- 页面指示器 -->
+    <div class="page-indicator">
+        <span class="indicator-dot active" data-page="0"></span>
+        <span class="indicator-dot" data-page="1"></span>
+        <span class="indicator-dot" data-page="2"></span>
+    </div>
+    </div>
+</div> 
+</main>
+
+<!-- 右侧面板 -->
+<!-- 显示面板按钮 -->
+<button id="showSimplePanel" class="icon-btn" style="display:none;">📊</button>
+
+<aside class="right-panel">
+    <div class="panel-section">
+        <h3 class="panel-title">📊 练习统计</h3>
+
+        <!-- 核心指标 - 简约风格 -->
+        <div class="key-metrics-simple">
+            <div class="stats-section">
+                <!-- 总练习数量 -->
+                <div class="stat-line">
+                    <span class="stat-label">总练习:</span>
+                    <span class="stat-value" id="totalExercises">0题</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">总正确率:</span>
+                    <span class="stat-value" id="totalAccuracyRate">0%</span>
+                </div>
+                
+                <!-- 今日统计 -->
+                <div class="stat-line">
+                    <span class="stat-label">今日练习:</span>
+                    <span class="stat-value" id="totalPlays">0题</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">首击正确:</span>
+                    <span class="stat-value" id="correctCount">0题</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">首击正确率:</span>
+                    <span class="stat-value" id="accuracyRate">0%</span>
+                </div>
+                <div class="progress-mini">
+                    <div class="progress-fill-mini" id="accuracyProgress"></div>
+                </div>
+                
+                <!-- 连胜记录 -->
+                <div class="stat-line">
+                    <span class="stat-label">当前连击:</span>
+                    <span class="stat-value" id="currentStreak-label">0连胜</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">最高连击:</span>
+                    <span class="stat-value" id="maxStreak-label">0连胜</span>
+                </div>
+                <button id="viewDetailsBtn" class="view-details-btn">
+                    📈 查看详细信息
+                </button>
+            </div>
+        </div>
+
+            
+       
+    </div>
+
+    <!-- 历史记录 -->
+    <div class="panel-section">
+        <h3 class="panel-title">历史记录</h3>
+        <div class="history-list" id="historyList">
+            <div class="history-empty">暂无播放记录</div>
+        </div>
+    </div>
+</aside>
+<button id="mobileSidebarToggle" class="mobile-sidebar-toggle" style="display: none;">☰</button>
+</div>
+<!-- 原有的模态框和遮罩 -->
+<div id="rangeModal">
+    <h3 style="margin:0 0 12px;font-size:16px;text-align:center">选择音域</h3>
+    <label style="display:block;margin:6px 0;font-size:15px"><input type="radio" name="range" value="low" checked> C4 – B4</label>
+    <label style="display:block;margin:6px 0;font-size:15px"><input type="radio" name="range" value="mid"> C5 – B5</label>
+    <label style="display:block;margin:6px 0;font-size:15px"><input type="radio" name="range" value="all"> C4 – B5</label>
+    <div style="text-align:center;margin-top:14px"><button id="rangeOkBtn" style="padding:4px 14px;font-size:14px">确定</button></div>
+</div>
+
+<div id="rangeMask"></div>
+
+<div id="settingsMask"></div>
+
+<div id="settingsModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1002;">
+    <div id="settingsBox" style="width:770px;height:630px;display:flex;background:var(--card);border-radius:24px;box-shadow:0 20px 60px var(--shadow);overflow:hidden;">
+        <aside id="settingsMenu" style="flex:0 0 200px;border-right:1px solid var(--btn-sec);padding:30px 20px;">
+            <button class="menuBtn active" data-panel="general">通用</button>
+            <button class="menuBtn" data-panel="sound">音色</button>
+            <button class="menuBtn" data-panel="about">关于</button>
+        </aside>
+        <section id="settingsPanel" style="flex:1;padding:30px;"></section>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script type="module">
+    // 音域按钮事件处理（模块化版本）
+    import { updateRange } from './modules/ui/range-manager.js';
+    
+    document.addEventListener('click', function (e) {
+        // 判断点击的是否是设置面板里的音域按钮
+        if (e.target.classList && e.target.classList.contains('rangeBtn') && e.target.closest('#settingsPanel')) {
+            const range = e.target.dataset.range;
+            if (!range) return;
+    
+            // 使用模块函数
+            updateRange(range);
+    
+            // 同步左侧面板按钮状态
+            document.querySelectorAll('.left-panel .range-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.range === range);
+            });
+    
+            // 同步设置面板按钮状态
+            const rangeBtnGroup = e.target.closest('#rangeBtnGroup');
+            if (rangeBtnGroup) {
+                rangeBtnGroup.querySelectorAll('.rangeBtn').forEach(btn => {
+                    btn.classList.toggle('active', btn === e.target);
+                });
+            }
+        }
+    });
+    </script>
+</body>
+</html>
