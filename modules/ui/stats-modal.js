@@ -1,5 +1,3 @@
-// modules/ui/stats-modal.js
-import { AppState } from '../core/state.js';
 import statsManager from '../quiz/stats-manager.js';
 
 class StatsModal {
@@ -30,12 +28,10 @@ class StatsModal {
             <div class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3>📊 详细统计信息</h3>
+                        <h3>📈 详细统计信息</h3>
                         <button class="close-modal">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <!-- 🗑️ 删除筛选器部分 -->
-                        
                         <!-- 总体统计 -->
                         <div class="modal-section">
                             <h4>总体统计</h4>
@@ -185,7 +181,6 @@ class StatsModal {
         
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
-                // 暂时禁用导出功能
                 this.showToast('导出功能开发中');
             });
         }
@@ -323,8 +318,8 @@ updateDifficultyStats(difficulties) {
     
     let html = '';
     const difficultyMap = {
-        'basic': { name: '基础难度', class: 'basic' },
-        'extended': { name: '扩展难度', class: 'extended' }
+        'basic': { name: '仅基本音级', class: 'basic' },
+        'extended': { name: '含变化音级', class: 'extended' }
     };
     
     Object.entries(difficultyMap).forEach(([key, info]) => {

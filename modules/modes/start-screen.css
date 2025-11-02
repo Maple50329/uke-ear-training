@@ -20,6 +20,11 @@
     .mobile-cards-nav {
         display: none !important;
     }
+
+    .main-content {
+        overflow-y: auto;
+        padding-bottom: 28px;   /* 状态栏高度 */
+    }
 }
 
 /* 🚨 确保移动端隐藏所有非活动卡片 */

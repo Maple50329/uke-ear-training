@@ -12,46 +12,49 @@ export function updateRange(key) {
         return;
     }
     
-    // 如果在播放中或已开始但未完成答题，只保存待处理更改，不立即应用
-    if (AppState.quiz.locked || (AppState.quiz.hasStarted && !AppState.quiz.answered)) {
+    // 如果在播放中，只保存待处理更改，不立即应用
+    if (AppState.quiz.locked) {
         pendingRangeChange = key;
         showKeyChangeToast('音域更改将在下一题生效');
-        // 允许UI预览更新，但不实际改变当前音域
         syncUIPreview(key);
         return;
     }
     
-    // 如果已经答题完成，提示下一题生效并保存待处理更改
+    // 🔴 修复：答对后允许立即更新音域
     if (AppState.quiz.answered) {
+        // 答对后可以立即应用音域更改
+        applyRangeChange(key);
+        showKeyChangeToast('音域已更新');
+        return;
+    }
+    
+    // 如果已经开始但未完成答题，提示下一题生效
+    if (AppState.quiz.hasStarted && !AppState.quiz.answered) {
         pendingRangeChange = key;
         showKeyChangeToast('音域更改将在下一题生效');
-        // 允许UI预览更新，但不实际改变当前音域
         syncUIPreview(key);
         return;
     }
     
-    // 只有在未开始答题时才立即应用更改
+    // 未开始答题时立即应用更改
     if (!AppState.quiz.hasStarted) {
         applyRangeChange(key);
-    } else {
-        // 其他情况都设为待处理
-        pendingRangeChange = key;
-        syncUIPreview(key);
     }
 }
 
 // 应用音域更改
 function applyRangeChange(key) {
-    
     currentRange = ranges[key];
     window.currentRange = currentRange;
-    pendingRangeChange = null; // 清除待处理更改
+    pendingRangeChange = null;
 
     // 更新UI状态
     syncUIPreview(key);
     
-    // 触发范围变化事件
-    window.dispatchEvent(new Event('range-changed'));
+    // 🔴 确保触发范围变化事件
+    window.dispatchEvent(new CustomEvent('range-changed', {
+        detail: { range: key }
+    }));
 }
 
 // 检查并应用待处理的音域更改
@@ -138,6 +141,19 @@ export function bindSettingsPanelRangeButtons() {
             if (!range) return;
 
             updateRange(range);
+
+            // 同步左侧面板按钮状态
+            document.querySelectorAll('.left-panel .range-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.range === range);
+            });
+
+            // 同步设置面板按钮状态
+            const rangeBtnGroup = e.target.closest('#rangeBtnGroup');
+            if (rangeBtnGroup) {
+                rangeBtnGroup.querySelectorAll('.rangeBtn').forEach(btn => {
+                    btn.classList.toggle('active', btn === e.target);
+                });
+            }
         }
     });
 }

@@ -7,8 +7,15 @@ export const AppGlobal = {
   },
   
   addTool(toolName, toolFunction) {
-    if (this.tools[toolName]) {
-      console.warn(`🛠️ 工具 "${toolName}" 已存在，将被覆盖`);
+    const existingTool = this.tools[toolName];
+    
+    // 如果是懒加载代理被实际函数替换，不警告
+    if (existingTool) {
+      const isLazyProxyReplacement = existingTool._isLazyProxy && !toolFunction._isLazyProxy;
+      
+      if (!isLazyProxyReplacement) {
+        console.warn(`🛠️ 工具 "${toolName}" 已存在，将被覆盖`);
+      }
     }
     
     this.tools[toolName] = toolFunction;

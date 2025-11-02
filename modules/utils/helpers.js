@@ -141,8 +141,8 @@ export function getBaseNote() {
     const currentKey = document.getElementById('keySelect')?.value || 'C';
     
     // 使用工具箱获取当前音域
-    const getCurrentRange = AppGlobal.getTool('getCurrentRange');
-    const currentRange = getCurrentRange ? getCurrentRange() : ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','A#3','B3'];
+    const getCurrentRangeFunc = AppGlobal.getTool('getCurrentRange');
+    const currentRange = getCurrentRangeFunc ? getCurrentRangeFunc() : ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','A#3','B3'];
     const isLowRange = currentRange[0] === 'C3';
 
     if (baseMode === 'c') {

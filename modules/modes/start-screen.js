@@ -32,7 +32,6 @@ export class StartScreenManager {
     }
 
 initMobileCardsNavigation() {
-    console.log('=== 开始初始化移动端卡片导航 ===');
     
     // 🚨 先移除旧的事件监听器（防止重复绑定）
     if (this.prevHandler) {
@@ -47,15 +46,9 @@ initMobileCardsNavigation() {
     const nextBtn = document.querySelector('.nav-next');
     const currentSpan = document.querySelector('.nav-current');
     const totalSpan = document.querySelector('.nav-total');
-    
-    console.log('窗口宽度:', window.innerWidth);
-    console.log('找到卡片数量:', cards.length);
-    console.log('找到上一个按钮:', !!prevBtn);
-    console.log('找到下一个按钮:', !!nextBtn);
-    
+
     // 只在768px以下初始化
     if (window.innerWidth > 768) {
-        console.log('桌面端，跳过卡片导航初始化');
         // 确保桌面端所有卡片都显示
         document.querySelectorAll('.mode-card').forEach(card => {
             card.style.display = 'flex';
@@ -87,16 +80,13 @@ initMobileCardsNavigation() {
     // 设置总页数
     if (totalSpan) totalSpan.textContent = totalCards;
     
-    const updateCards = () => {
-        console.log('切换到卡片:', currentIndex);
-        
+    const updateCards = () => {        
         cards.forEach((card, index) => {
             if (index === currentIndex) {
                 card.classList.add('active');
                 card.style.display = 'flex';
                 card.style.opacity = '1';
                 card.style.visibility = 'visible';
-                console.log('✅ 显示卡片:', index);
             } else {
                 card.classList.remove('active');
                 card.style.display = 'none';
@@ -111,13 +101,10 @@ initMobileCardsNavigation() {
         
         // 更新页码
         if (currentSpan) currentSpan.textContent = currentIndex + 1;
-        
-        console.log('按钮状态 - 上一个:', prevBtn.disabled, '下一个:', nextBtn.disabled);
     };
     
     // 🚨 保存事件处理器引用
     this.prevHandler = () => {
-        console.log('点击上一个按钮');
         if (currentIndex > 0) {
             currentIndex--;
             updateCards();
@@ -125,7 +112,6 @@ initMobileCardsNavigation() {
     };
     
     this.nextHandler = () => {
-        console.log('点击下一个按钮');
         if (currentIndex < totalCards - 1) {
             currentIndex++;
             updateCards();
@@ -144,7 +130,6 @@ initMobileCardsNavigation() {
     
     // 初始化显示
     updateCards();
-    console.log('=== 移动端卡片导航初始化完成 ===');
 }
 
     bindEvents() {
@@ -382,8 +367,6 @@ initMobileCardsNavigation() {
         // 更新状态
         AppState.mode.previous = AppState.mode.current;
         AppState.mode.current = 'start';
-        
-        console.log('✅ 已返回开始屏幕');
     }
 
     stopCurrentMode() {

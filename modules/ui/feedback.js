@@ -3,11 +3,8 @@ import { INTERVAL_INFO } from '../core/constants.js';
 import { getNoteDegree, getStabilityClass, getSolfegeName } from '../utils/helpers.js';
 import { updateUkulelePosition } from '../theory/ukulele.js';
 
-// 导入工具箱
-import AppGlobal from '../core/app.js';
-
 // 显示答题结果反馈
-function showAnswerFeedback(isCorrect) {
+export function showAnswerFeedback(isCorrect) {
     if (!AppState.dom.ansArea) return;
     
     AppState.dom.ansArea.classList.add(isCorrect ? 'correct' : 'incorrect');
@@ -20,7 +17,7 @@ function showAnswerFeedback(isCorrect) {
 }
 
 // 更新音程显示函数
-function updateIntervalDisplay(baseNote, targetNote, intervalInfo) {
+export function updateIntervalDisplay(baseNote, targetNote, intervalInfo) {
     const intervalNameEl = document.getElementById('intervalName');
     const intervalDetailEl = document.getElementById('intervalDetail');
     const stabilityEl = document.getElementById('intervalStability');
@@ -40,7 +37,7 @@ function updateIntervalDisplay(baseNote, targetNote, intervalInfo) {
 }
 
 // 音程显示功能（增强版，带日志和错误处理）
-function updateIntervalDisplayInfo(baseNote, targetNote, intervalType) {
+export function updateIntervalDisplayInfo(baseNote, targetNote, intervalType) {
     const intervalInfo = INTERVAL_INFO[intervalType];
     if (intervalInfo) {
       updateIntervalDisplay(baseNote, targetNote, intervalInfo);
@@ -58,7 +55,7 @@ function updateIntervalDisplayInfo(baseNote, targetNote, intervalType) {
     }
 }
 
-function updateCurrentPitchDisplay(noteName, frequency = null) {
+export function updateCurrentPitchDisplay(noteName, frequency = null) {
     if (typeof noteName === 'undefined') {
       noteName = null;
     }
@@ -109,7 +106,7 @@ function updateCurrentPitchDisplay(noteName, frequency = null) {
 }
 
 // 更新答题区视觉状态
-function updateAnswerAreaState() {
+export function updateAnswerAreaState() {
     if (!AppState.dom.ansArea) return;
     
     AppState.dom.ansArea.classList.remove('disabled', 'enabled', 'playing', 'correct', 'incorrect');
@@ -122,48 +119,80 @@ function updateAnswerAreaState() {
 }
 
 // 修改现有的禁用函数
-function disableAnswerButtons() {
+export function disableAnswerButtons() {
   if (!AppState.dom.ansArea) {
-      console.warn('答题区未初始化，跳过禁用按钮');
+      // 静默返回，不打印警告
       return;
   }
   
   const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
   if (buttons.length === 0) {
-      console.warn('未找到答题按钮，可能尚未渲染');
+      // 静默返回，按钮尚未渲染是正常情况
       return;
   }
   
   buttons.forEach(btn => {
-      btn.disabled = true; 
+      btn.disabled = true;
+      btn.classList.add('disabled');
   });
+  
+  // 添加答题区禁用样式
+  AppState.dom.ansArea.classList.add('disabled');
 }
   
-function enableAnswerButtons() {
-  if (!AppState.dom.ansArea) return;
-  
-  AppState.dom.ansArea.querySelectorAll('.key-btn').forEach(btn => {
-    btn.disabled = false;
-  });
-}
-
-function syncButtonStates() {
-  if (!AppState.dom.ansArea) return;
+export function enableAnswerButtons() {
+  if (!AppState.dom.ansArea) {
+      // 静默返回
+      return;
+  }
   
   const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
+  if (buttons.length === 0) {
+      // 静默返回
+      return;
+  }
+  
+  buttons.forEach(btn => {
+      btn.disabled = false;
+      btn.classList.remove('disabled');
+  });
+  
+  // 移除答题区禁用样式
+  AppState.dom.ansArea.classList.remove('disabled');
+}
+
+export function syncButtonStates() {
+  if (!AppState.dom.ansArea) {
+      return;
+  }
+  
+  const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
+  if (buttons.length === 0) {
+      return;
+  }
+  
   const shouldBeDisabled = AppState.quiz.locked || AppState.quiz.answered;
   
   buttons.forEach(btn => {
-    if (shouldBeDisabled && !btn.disabled) {
-      btn.disabled = true;
-    } else if (!shouldBeDisabled && btn.disabled && !btn.classList.contains('hit')) {
-      btn.disabled = false;
-    }
+      if (shouldBeDisabled) {
+          btn.disabled = true;
+          btn.classList.add('disabled');
+      } else {
+          btn.disabled = false;
+          btn.classList.remove('disabled');
+      }
   });
+  
+  // 同步答题区样式
+  if (shouldBeDisabled) {
+      AppState.dom.ansArea.classList.add('disabled');
+  } else {
+      AppState.dom.ansArea.classList.remove('disabled');
+  }
 }
 
 // 基准音按钮视觉状态更新
-function updateModeButtonsVisualState() {
+export function updateModeButtonsVisualState() {
     const modeButtons = document.querySelectorAll('.mode-btn');
     
     modeButtons.forEach(btn => {
@@ -180,7 +209,7 @@ function updateModeButtonsVisualState() {
     });
 }
 
-function initPitchVisualizer() {
+export function initPitchVisualizer() {
     const pitchPage = document.getElementById('pitch-page');
     if (pitchPage && pitchPage.querySelector('.card-content') && !pitchPage.querySelector('.pitch-visual')) {
         const visualHtml = `
@@ -194,7 +223,7 @@ function initPitchVisualizer() {
 }
 
 // 在答题正确时调用显示尤克里里指位
-function showUkulelePositions(noteName) {
+export function showUkulelePositions(noteName) {
     const baseNoteName = noteName.replace(/\d/g, ''); // 移除八度信息
     updateUkulelePosition(baseNoteName);
     
@@ -208,7 +237,7 @@ function showUkulelePositions(noteName) {
 
 // 欢迎界面控制函数
 // 隐藏欢迎界面
-function hideAllWelcomeOverlays() {
+export function hideAllWelcomeOverlays() {
     const overlays = document.querySelectorAll('.welcome-overlay');
     overlays.forEach(overlay => {
         overlay.classList.remove('active');
@@ -222,7 +251,7 @@ function hideAllWelcomeOverlays() {
 }
   
 // 显示欢迎界面
-function showWelcomeOverlays() {
+export function showWelcomeOverlays() {
     const overlays = document.querySelectorAll('.welcome-overlay');
     overlays.forEach(overlay => {
         overlay.classList.add('active');
@@ -236,7 +265,7 @@ function showWelcomeOverlays() {
 }
 
 // 更新面板信息
-function updatePanelInfo(noteName, frequency, intervalName, semitones, ukuleleString, ukuleleFret) {
+export function updatePanelInfo(noteName, frequency, intervalName, semitones, ukuleleString, ukuleleFret) {
   // 更新音高信息
   const pitchEl = document.getElementById('simplePitch');
   const frequencyEl = document.getElementById('simpleFrequency');
@@ -256,12 +285,12 @@ function updatePanelInfo(noteName, frequency, intervalName, semitones, ukuleleSt
   if (ukuleleFretEl) ukuleleFretEl.textContent = ukuleleFret ? `第${ukuleleFret}品` : '--';
 }
 
-function updatePanelInfoFull(noteName, frequency, intervalName, semitones, ukuleleString, ukuleleFret) {
+export function updatePanelInfoFull(noteName, frequency, intervalName, semitones, ukuleleString, ukuleleFret) {
   updatePanelInfo(noteName, frequency, intervalName, semitones, ukuleleString, ukuleleFret);
 }
 
 // 更新面板信息
-function updateSimplePanel(noteName, interval, position) {
+export function updateSimplePanel(noteName, interval, position) {
   const pitchElement = document.getElementById('simplePitch');
   const intervalElement = document.getElementById('simpleInterval');
   const positionElement = document.getElementById('simplePosition');
@@ -271,7 +300,7 @@ function updateSimplePanel(noteName, interval, position) {
   if (positionElement) positionElement.textContent = position || '--';
 }
 
-function showToast(message, duration = 2000) {
+export function showToast(message, duration = 2000) {
   const toast = document.getElementById('toast');
   if (toast) {
       toast.textContent = message;
@@ -283,22 +312,21 @@ function showToast(message, duration = 2000) {
   }
 }
 
-export {
-    showAnswerFeedback,
-    updateIntervalDisplay,
-    updateIntervalDisplayInfo,
-    updateCurrentPitchDisplay,
-    updateAnswerAreaState,
-    disableAnswerButtons,
-    enableAnswerButtons,
-    syncButtonStates,
-    updateModeButtonsVisualState,
-    initPitchVisualizer,
-    showUkulelePositions,
-    hideAllWelcomeOverlays,
-    showWelcomeOverlays,
-    updatePanelInfo,
-    updatePanelInfoFull,
-    updateSimplePanel,
-    showToast
-};
+export function updateAllMessageDisplays(text) {
+  // 更新桌面端消息显示
+  if (AppState.dom.msgDisplay) {
+    AppState.dom.msgDisplay.textContent = text;
+  }
+  
+  // 更新移动端描述信息栏
+  updateMobileDescription(text);
+}
+
+export function updateMobileDescription(text) {
+  requestAnimationFrame(() => {
+    const mobileDescText = document.getElementById('mobileDescText');
+    if (mobileDescText) {
+      mobileDescText.textContent = text;
+    }
+  });
+}

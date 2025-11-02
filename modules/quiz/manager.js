@@ -2,25 +2,11 @@
 import { AppState } from '../core/state.js';
 import { UI_TEXT, KEY_SCALES, NOTE_FREQUENCIES } from '../core/constants.js';
 import { updateBigButtonState, updateResetButtonState } from '../ui/buttons.js';
-import { playNoteSampler, ensureAudioContextReady, stopAllAudio, stopPlayback } from '../audio/engine.js';
+import { playNoteSampler, ensureAudioContextReady, stopPlayback } from '../audio/engine.js';
 import { playSFX } from '../audio/sfx.js';
-import { resetAnswerInfo } from '../ui/panel-manager.js';
-import { 
-  showAnswerFeedback, 
-  hideAllWelcomeOverlays, 
-  updateModeButtonsVisualState, 
-  updateAnswerAreaState,
-  disableAnswerButtons,
-  syncButtonStates,
-  enableAnswerButtons,
-  updateIntervalDisplayInfo,
-  showUkulelePositions,
-  updateCurrentPitchDisplay
-} from '../ui/feedback.js';
+import { updateAllMessageDisplays } from '../ui/feedback.js';
 import { addToHistory, updateRightPanelStats } from './history.js';
-import { getANoteForKey, calculateIntervalType, getBaseNote } from '../utils/helpers.js';
-import { renderAnswerButtons } from '../ui/answer-grid.js';
-import { getCurrentRange } from '../ui/range-manager.js';
+import { getANoteForKey, calculateIntervalType } from '../utils/helpers.js';
 
 // 导入统计管理器
 import statsManager from './stats-manager.js';
@@ -30,239 +16,336 @@ import AppGlobal from '../core/app.js';
 
 // 答题区渲染
 async function playQuizSequence(isReplay = false) {
-    // 使用工具箱获取函数
-    const hideOverlays = AppGlobal.getTool('hideAllWelcomeOverlays') || hideAllWelcomeOverlays;
-    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState') || updateModeButtonsVisualState;
-    const updateAnswerState = AppGlobal.getTool('updateAnswerAreaState') || updateAnswerAreaState;
-    const disableButtons = AppGlobal.getTool('disableAnswerButtons') || disableAnswerButtons;
-    const enableButtons = AppGlobal.getTool('enableAnswerButtons') || enableAnswerButtons;
-    const syncButtons = AppGlobal.getTool('syncButtonStates') || syncButtonStates;
-    const updateIntervalDisplay = AppGlobal.getTool('updateIntervalDisplayInfo') || updateIntervalDisplayInfo;
-    const showUkulele = AppGlobal.getTool('showUkulelePositions') || showUkulelePositions;
-    const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay') || updateCurrentPitchDisplay;
-    const renderFunc = AppGlobal.getTool('renderAnswerButtons') || renderAnswerButtons;
-if (!isReplay && window.applyPendingRangeChange) {
-        const rangeChanged = window.applyPendingRangeChange();
+
+    const hideOverlays = AppGlobal.getTool('hideAllWelcomeOverlays');
+    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
+    const updateAnswerState = AppGlobal.getTool('updateAnswerAreaState');
+    const disableButtons = AppGlobal.getTool('disableAnswerButtons');
+    const enableButtons = AppGlobal.getTool('enableAnswerButtons');
+    const syncButtons = AppGlobal.getTool('syncButtonStates');
+    const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
+    const renderFunc = AppGlobal.getTool('renderAnswerButtons');
+    const updateAllMessages = AppGlobal.getTool('updateAllMessageDisplays');
+    const getCurrentRangeFunc = AppGlobal.getTool('getCurrentRange');
+    const PendingChange = AppGlobal.getTool('applyPendingRangeChange');
+
+    if (!isReplay && PendingChange) {
+        const rangeChanged = PendingChange();
     }
     
-    // 原有代码继续...
+    if (!isReplay && AppState.dom.ansArea) {
+        const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
+        buttons.forEach(btn => {
+            btn.classList.remove('hit', 'miss');
+        });
+    }
+
     if (AppState.ui.firstPlay && !isReplay) {
-      AppState.ui.firstPlay = false;
-      hideOverlays();
+        AppState.ui.firstPlay = false;
+        hideOverlays();
     }
     
-    updateModeVisuals();
+    updateModeVisuals(); 
+    if (!isReplay) {
+        // 应用预选调性
+        if (AppState.quiz.pendingKeyChange) {
+            const newKey = AppState.quiz.pendingKeyChange;
+            AppState.quiz.currentKey = newKey;
+            AppState.quiz.pendingKeyChange = null;
+            
+            // 更新UI下拉框显示实际调性
+            const keySelect = document.getElementById('keySelect');
+            if (keySelect) keySelect.value = newKey;
+        }
+        
+        // 应用预选基准音模式
+        if (AppState.quiz.pendingBaseModeChange) {
+            const newMode = AppState.quiz.pendingBaseModeChange;
+            AppState.quiz.questionBaseMode = newMode;
+            AppState.quiz.pendingBaseModeChange = null;
+            
+            // 更新UI按钮显示实际模式
+            const modeButtons = document.querySelectorAll('.mode-btn');
+            modeButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === newMode);
+            });
+        }
+        // 应用预选难度
+        if (AppState.quiz.pendingDifficultyChange) {
+            const newDifficulty = AppState.quiz.pendingDifficultyChange;
+            AppState.quiz.currentDifficulty = newDifficulty;
+            AppState.quiz.pendingDifficultyChange = null;
+            
+            // 更新UI下拉框显示实际难度
+            const difficultySelect = document.getElementById('difficultySelect');
+            if (difficultySelect) difficultySelect.value = newDifficulty;
+
+        }
     
+    }
+
     /* ---------- 1. 新题目：先更新调号与基准音 ---------- */
     if (!isReplay) {
-    if (statsManager && typeof statsManager.cancelCurrentQuestion === 'function') {
-    statsManager.cancelCurrentQuestion();
+        if (statsManager && typeof statsManager.cancelCurrentQuestion === 'function') {
+            statsManager.cancelCurrentQuestion();
+        }
+        statsManager.recordNewQuestion();
+        
+        // 保存出题时的基准音模式
+        const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
+        AppState.quiz.questionBaseMode = baseMode;
+        
+        window.dispatchEvent(new CustomEvent('base-mode-changed', {
+            detail: { mode: baseMode }
+        }));
+
+        const newKey = document.getElementById('keySelect')?.value || 'C';
+        AppState.quiz.currentKey = newKey;
+        AppState.quiz.hasStarted = true;
+        AppState.quiz.answered = false;
+        
+        // 重置当前题目的尝试状态
+        AppState.quiz.hasAnsweredCurrent = false;
+        AppState.quiz.attemptCount = 0;
+        
+        // 使用工具箱重置答案信息
+        const resetInfo = AppGlobal.getTool('resetAnswerInfo');
+        resetInfo();
+
+        const degreeElement = document.getElementById('currentDegree');
+
+        /* 让基准音随调号和音域走 */
+        const currentRange = getCurrentRangeFunc();
+        const isLowRange = currentRange[0] === 'C3';
+        
+        if (baseMode === 'c') {
+            // 固定C模式
+            const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
+            AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
+            AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
+        } else {
+            // 固定A模式
+            const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
+            AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
+            AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
+        }
+
+        // 🔴 修复关键点：立即设置当前音阶和难度，并渲染答题按钮
+        AppState.quiz.currentDifficulty = document.getElementById('difficultySelect')?.value || 'basic';
+        const key = AppState.quiz.currentKey;
+        const difficulty = AppState.quiz.currentDifficulty;
+        
+        // 根据当前音域获取对应的音阶
+        const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRange);
+        const fullScale = getScaleForRange(KEY_SCALES[key]?.extended || KEY_SCALES.C.extended, currentRange);
+        
+        AppState.quiz.currentScale = difficulty === 'basic' ? naturalScale : fullScale;
+
+        // 🔴 立即渲染答题按钮（新增这行代码）
+        if (AppState.dom.ansArea && renderFunc) {
+            AppState.dom.ansArea.style.display = 'grid';
+            renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
+            disableButtons();
+        }
     }
-   statsManager.recordNewQuestion();
-   
-  // 保存出题时的基准音模式
-  const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
-  AppState.quiz.questionBaseMode = baseMode;
-  
-  const newKey = document.getElementById('keySelect')?.value || 'C';
-  AppState.quiz.currentKey = newKey;
-  AppState.quiz.hasStarted = true;
-  AppState.quiz.answered = false;
-  
-  // 重置当前题目的尝试状态
-  AppState.quiz.hasAnsweredCurrent = false;
-  AppState.quiz.attemptCount = 0;
-  
-  // 使用工具箱重置答案信息
-  const resetInfo = AppGlobal.getTool('resetAnswerInfo') || resetAnswerInfo;
-  resetInfo();
-
-  const degreeElement = document.getElementById('currentDegree');
-
-  /* 让基准音随调号和音域走 */
-  const currentRange = getCurrentRange();
-  const isLowRange = currentRange[0] === 'C3';
-  
-  if (baseMode === 'c') {
-    // 固定C模式
-    const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
-    AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
-    AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
-  } else {
-    // 固定A模式
-    const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
-    AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
-    AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
-  }
-}
-  
+    
     /* ---------- 2. 音频就绪检查 ---------- */
     const audioReady = await ensureAudioContextReady();
     if (!audioReady) {
-      if (AppState.dom.msgDisplay) AppState.dom.msgDisplay.textContent = '音频未就绪，请点击页面激活';
-      AppState.quiz.locked = false;
-      // 解锁基准音按钮
-      const modeButtons = document.querySelectorAll('.mode-btn');
-      modeButtons.forEach(btn => {
-        btn.disabled = false;
-      });
-      updateResetButtonState();
-      return;
+        updateAllMessages('音频未就绪，请点击页面激活');
+        AppState.quiz.locked = false;
+        // 解锁基准音按钮
+        const modeButtons = document.querySelectorAll('.mode-btn');
+        modeButtons.forEach(btn => {
+            btn.disabled = false;
+        });
+        updateResetButtonState();
+        return;
     }
-  
+    
     AppState.quiz.locked = true;
     AppState.audio.isPlaying = true;
     updateAnswerState();
     updateResetButtonState();
     updateBigButtonState();
     disableButtons();
-  
+    
     try {
-      const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
-      const enableScale = document.getElementById('enableScalePlayback')?.checked ?? true;
-  const currentRange = getCurrentRange();
-
-      if (!isReplay) {
-        AppState.quiz.currentDifficulty = document.getElementById('difficultySelect')?.value || 'basic';
-      }
-  
-      const key = AppState.quiz.currentKey;
-      const difficulty = AppState.quiz.currentDifficulty;
-   
-      
-      // 根据当前音域获取对应的音阶
-      const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRange);
-      const fullScale = getScaleForRange(KEY_SCALES[key]?.extended || KEY_SCALES.C.extended, currentRange);
-  
-      /* 取已存好的动态基准音 */
-      const baseNote = getQuestionBaseNote();
-      if (!isReplay) {
-        AppState.quiz.currentScale = difficulty === 'basic' ? naturalScale : fullScale;
-      }
-  
-      /* ---------- 3. 播放流程 ---------- */
-      const eighthNote = 0.5, quarterNote = 1.0, noteInterval = 120;
-  
-      if (!isReplay) {
-        updatePitch('--', null);
-        const targetScale = difficulty === 'basic' ? naturalScale : fullScale;
-        const targetIndex = Math.floor(Math.random() * targetScale.length);
-        AppState.quiz.currentTargetNote = targetScale[targetIndex];
-        AppState.quiz.currentNoteIdx = targetIndex;
-        AppState.quiz.answered = false;
-  
-        if (AppState.dom.ansArea) {
-          AppState.dom.ansArea.style.display = 'grid';
-          renderFunc(targetScale, difficulty);
-          disableButtons();
+        const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
+        const enableScale = document.getElementById('enableScalePlayback')?.checked ?? true;
+        const currentRange = getCurrentRangeFunc();
+        const key = AppState.quiz.currentKey;
+        const difficulty = AppState.quiz.currentDifficulty;
+        
+        // 根据当前音域获取对应的音阶
+        const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRange);
+        const fullScale = getScaleForRange(KEY_SCALES[key]?.extended || KEY_SCALES.C.extended, currentRange);
+        
+        /* 取已存好的动态基准音 */
+        const baseNote = getQuestionBaseNote();
+        
+        // 🔴 确保使用已设置的音阶（移除这里的重复设置）
+        // if (!isReplay) {
+        //     AppState.quiz.currentScale = difficulty === 'basic' ? naturalScale : fullScale;
+        // }
+        
+        /* ---------- 3. 播放流程 ---------- */
+        const eighthNote = 0.5, quarterNote = 1.0, noteInterval = 120;
+        
+        if (!isReplay) {
+            updatePitch('--', null);
+            // 🔴 使用已经设置好的音阶
+            const targetScale = AppState.quiz.currentScale;
+            
+            let targetIndex;
+            let newTargetNote;
+            let attempts = 0;
+            const maxAttempts = 10; // 防止无限循环
+            
+            do {
+                targetIndex = Math.floor(Math.random() * targetScale.length);
+                newTargetNote = targetScale[targetIndex];
+                attempts++;
+            } while (
+                // 避免与最近3题重复
+                AppState.quiz.recentTargetNotes.includes(newTargetNote) && 
+                targetScale.length > 3 && // 确保有足够的选择
+                attempts < maxAttempts
+            );
+            
+            AppState.quiz.currentTargetNote = newTargetNote;
+            AppState.quiz.currentNoteIdx = targetIndex;
+            AppState.quiz.answered = false;
+            
+            // 更新历史记录，只保留最近3个
+            AppState.quiz.recentTargetNotes.unshift(newTargetNote);
+            AppState.quiz.recentTargetNotes = AppState.quiz.recentTargetNotes.slice(0, 3);
+        } else {
+            if (AppState.dom.ansArea) {
+                AppState.dom.ansArea.style.display = 'grid';
+                renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
+                disableButtons();
+            }
         }
-      } else {
-        if (AppState.dom.ansArea) {
-          AppState.dom.ansArea.style.display = 'grid';
-          renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
-          disableButtons();
+        
+        if (AppState.audio.shouldStop) { 
+            AppState.audio.shouldStop = false; 
+            updateResetButtonState(); 
+            return; 
         }
-      }
-  
-      if (AppState.audio.shouldStop) { 
-        AppState.audio.shouldStop = false; 
-        updateResetButtonState(); 
-        return; 
-      }
-  
-      if ((!isReplay || enableScale) && enableScale) {
-        if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_SCALE;
+        
+        if ((!isReplay || enableScale) && enableScale) {
+            if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_SCALE;
+            updateBigButtonState();
+            updateAllMessages(UI_TEXT.PLAYING_SCALE);
+            AppState.audio.isPlaying = true; 
+            updateAnswerState();
+            
+            for (const note of naturalScale) {
+                if (AppState.audio.shouldStop) break;
+                
+                // 添加音阶播放的视觉反馈
+                const addVisualFeedback = AppGlobal.getTool('addVisualFeedback');
+                if (addVisualFeedback) {
+                    addVisualFeedback(note, 'scale');
+                }
+                
+                await playNoteSampler(note, eighthNote);
+                if (AppState.audio.shouldStop) break;
+                await new Promise(resolve => setTimeout(resolve, noteInterval));
+            }
+            
+            if (!AppState.audio.shouldStop) await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+        if (AppState.audio.shouldStop) { 
+            AppState.audio.shouldStop = false; 
+            updateResetButtonState(); 
+            return; 
+        }
+        
+        /* 播放基准音 */
+        if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_REFERENCE;
         updateBigButtonState();
-        if (AppState.dom.msgDisplay) AppState.dom.msgDisplay.textContent = UI_TEXT.PLAYING_SCALE;
+        updateAllMessages(UI_TEXT.PLAYING_REFERENCE);
         AppState.audio.isPlaying = true; 
         updateAnswerState();
         
-        for (const note of naturalScale) {
-          if (AppState.audio.shouldStop) break;
-          await playNoteSampler(note, eighthNote);
-          if (AppState.audio.shouldStop) break;
-          await new Promise(resolve => setTimeout(resolve, noteInterval));
+        // 第一次播放基准音
+        const addVisualFeedback = AppGlobal.getTool('addVisualFeedback');
+        if (addVisualFeedback) {
+            addVisualFeedback(baseNote, 'reference');
         }
         
-        if (!AppState.audio.shouldStop) await new Promise(resolve => setTimeout(resolve, 300));
-      }
-  
-      if (AppState.audio.shouldStop) { 
-        AppState.audio.shouldStop = false; 
-        updateResetButtonState(); 
-        return; 
-      }
-  
-      /* 播放基准音 */
-      if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_REFERENCE;
-      updateBigButtonState();
-      if (AppState.dom.msgDisplay) AppState.dom.msgDisplay.textContent = UI_TEXT.PLAYING_REFERENCE;
-      AppState.audio.isPlaying = true; 
-      updateAnswerState();
-      
-      await playNoteSampler(baseNote, quarterNote);
-      if (AppState.audio.shouldStop) { 
-        updateResetButtonState(); 
-        return; 
-      }
-      await new Promise(resolve => setTimeout(resolve, noteInterval));
-      
-      await playNoteSampler(baseNote, quarterNote);
-      if (AppState.audio.shouldStop) { 
-        updateResetButtonState(); 
-        return; 
-      }
-      await new Promise(resolve => setTimeout(resolve, noteInterval));
-  
-      if (AppState.audio.shouldStop) { 
-        AppState.audio.shouldStop = false; 
-        updateResetButtonState(); 
-        return; 
-      }
-  
-      /* 播放目标音 */
-      disableButtons();
-      
-      if (AppState.dom.mainBtn) {
-        AppState.dom.mainBtn.textContent = isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET;
-      }
-      updateBigButtonState();
-      
-      if (AppState.dom.msgDisplay) {
-        AppState.dom.msgDisplay.textContent = isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET;
-      }
-      
-      AppState.audio.isPlaying = true; 
-      updateAnswerState();
-      
-      await playNoteSampler(AppState.quiz.currentTargetNote, quarterNote);
-      enableButtons();
-  
-      if (AppState.dom.mainBtn) {
-        AppState.dom.mainBtn.textContent = UI_TEXT.REPLAY;
+        await playNoteSampler(baseNote, quarterNote);
+        if (AppState.audio.shouldStop) { 
+            updateResetButtonState(); 
+            return; 
+        }
+        await new Promise(resolve => setTimeout(resolve, noteInterval));
+        
+        // 第二次播放基准音
+        if (addVisualFeedback) {
+            addVisualFeedback(baseNote, 'reference');
+        }
+        
+        await playNoteSampler(baseNote, quarterNote);
+        if (AppState.audio.shouldStop) { 
+            updateResetButtonState(); 
+            return; 
+        }
+        await new Promise(resolve => setTimeout(resolve, noteInterval));
+        
+        if (AppState.audio.shouldStop) { 
+            AppState.audio.shouldStop = false; 
+            updateResetButtonState(); 
+            return; 
+        }
+        
+        /* 播放目标音 */
+        disableButtons();
+        
+        if (AppState.dom.mainBtn) {
+            AppState.dom.mainBtn.textContent = isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET;
+        }
         updateBigButtonState();
-      }
-      
-      AppState.quiz.hasStarted = true;
-      AppState.quiz.isReplayMode = isReplay;
-  
+        
+        updateAllMessages(isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET);
+        
+        AppState.audio.isPlaying = true; 
+        updateAnswerState();
+        
+        // 添加目标音播放的视觉反馈
+        if (addVisualFeedback) {
+            addVisualFeedback(AppState.quiz.currentTargetNote, 'target');
+        }
+        
+        await playNoteSampler(AppState.quiz.currentTargetNote, quarterNote);
+        enableButtons();
+        
+        if (AppState.dom.mainBtn) {
+            AppState.dom.mainBtn.textContent = UI_TEXT.REPLAY;
+            updateBigButtonState();
+        }
+        
+        AppState.quiz.hasStarted = true;
+        AppState.quiz.isReplayMode = isReplay;
+        
     } catch (error) {
-      console.error('播放序列错误:', error);
-      if (AppState.dom.msgDisplay) {
-        AppState.dom.msgDisplay.textContent = '播放出错，请重试';
-      }
+        console.error('播放序列错误:', error);
+        updateAllMessages('播放出错，请重试');
     } finally {
-      AppState.quiz.locked = false;
-      AppState.audio.isPlaying = false; 
-      updateModeVisuals();
-      updateAnswerState();
-      updateResetButtonState();
-      updateBigButtonState();
-      syncButtons();
-      
-      if (AppState.dom.msgDisplay && !AppState.quiz.answered) {
-        AppState.dom.msgDisplay.textContent = '请选择你听到的音高';
-      }
+        AppState.quiz.locked = false;
+        AppState.audio.isPlaying = false; 
+        updateModeVisuals();
+        updateAnswerState();
+        updateResetButtonState();
+        updateBigButtonState();
+        syncButtons();
+        
+        if (!AppState.quiz.answered) {
+            updateAllMessages('请选择你听到的音高');
+        }
     }
 }
 
@@ -318,28 +401,24 @@ function getScaleForRange(scale, currentRange) {
 function checkAnswer(btn, selectedIndex) {
     if (btn.classList.contains('hit') || btn.classList.contains('miss') || AppState.quiz.answered) return;
     
-    // 使用工具箱获取函数
-    const showFeedback = AppGlobal.getTool('showAnswerFeedback') || showAnswerFeedback;
-    const disableButtons = AppGlobal.getTool('disableAnswerButtons') || disableAnswerButtons;
-    const syncButtons = AppGlobal.getTool('syncButtonStates') || syncButtonStates;
-    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState') || updateModeButtonsVisualState;
-    const updateIntervalDisplay = AppGlobal.getTool('updateIntervalDisplayInfo') || updateIntervalDisplayInfo;
-    const showUkulele = AppGlobal.getTool('showUkulelePositions') || showUkulelePositions;
-    const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay') || updateCurrentPitchDisplay;
-    const addHistory = AppGlobal.getTool('addToHistory') || addToHistory;
-    const updateStats = AppGlobal.getTool('updateRightPanelStats') || updateRightPanelStats;
-    const showCards = AppGlobal.getTool('showInfoCards') || showInfoCards;
-    const hideCards = AppGlobal.getTool('hideInfoCards') || hideInfoCards;
-    const resetInfo = AppGlobal.getTool('resetAnswerInfo') || resetAnswerInfo;
-    
+    const showFeedback = AppGlobal.getTool('showAnswerFeedback');
+    const disableButtons = AppGlobal.getTool('disableAnswerButtons');
+    const syncButtons = AppGlobal.getTool('syncButtonStates');
+    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
+    const updateIntervalDisplay = AppGlobal.getTool('updateIntervalDisplayInfo');
+    const showUkulele = AppGlobal.getTool('showUkulelePositions');
+    const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
+    const addHistory = AppGlobal.getTool('addToHistory');
+    const showCards = AppGlobal.getTool('showInfoCards');
+    const hideCards = AppGlobal.getTool('hideInfoCards');
+    const resetInfo = AppGlobal.getTool('resetAnswerInfo');
+    const updateAllMessages = AppGlobal.getTool('updateAllMessageDisplays') || updateAllMessageDisplays;
     const isCorrect = selectedIndex === AppState.quiz.currentNoteIdx;
     
-    // 🔴 关键修复：正确判断是否是第一次尝试
+    // 正确判断是否是第一次尝试
     const isFirstAttempt = !AppState.quiz.hasAnsweredCurrent && AppState.quiz.attemptCount === 0;
     
-    if (AppState.dom.msgDisplay) {
-        AppState.dom.msgDisplay.textContent = isCorrect ? '回答正确！' : '回答错误，请重试';
-    }
+    updateAllMessageDisplays(isCorrect ? '回答正确！' : '回答错误，请重试');
 
     btn.classList.add(isCorrect ? 'hit' : 'miss');
 
@@ -421,6 +500,9 @@ if (typeof updateRightPanelStats === 'function') {
         // 重置当前题目的尝试状态（为下一题准备）
         AppState.quiz.attemptCount = 0;
         
+        // 触发答对事件，让状态栏开始监听面板变化
+    window.dispatchEvent(new CustomEvent('answer-correct'));
+    
         // 答对后立即处理，不设置定时器
         stopPlayback();
         if (AppState.dom.mainBtn) {
@@ -471,9 +553,7 @@ if (typeof updateRightPanelStats === 'function') {
                 AppState.quiz.autoNextTimer = null;
             }, displayTime * 1000);
         } else {
-            if (AppState.dom.msgDisplay) {
-                AppState.dom.msgDisplay.textContent = '回答正确！点击"下一题"继续';
-            }
+          updateAllMessageDisplays('回答正确！点击"下一题"继续');
         }
 
         syncButtons();
@@ -487,8 +567,8 @@ if (typeof updateRightPanelStats === 'function') {
         }
         
         // 只在当前是第一次答错时显示错误消息
-        if (AppState.quiz.attemptCount === 1 && AppState.dom.msgDisplay) {
-            AppState.dom.msgDisplay.textContent = '回答错误，请重试';
+        if (AppState.quiz.attemptCount === 1) {
+            updateAllMessages('回答错误，请重试');
         }
     }
     
@@ -502,69 +582,7 @@ if (typeof updateRightPanelStats === 'function') {
     }
 }
 
-/**
- * 处理答对后的逻辑
- */
-function handleCorrectAnswer() {
-    stopPlayback();
-    
-    if (AppState.dom.mainBtn) {
-        AppState.dom.mainBtn.textContent = UI_TEXT.NEXT;
-        updateBigButtonState();
-    }
-    updateResetButtonState();
-    
-    // 只有在开启自动下一题时才自动跳转
-    const autoNextEnabled = document.getElementById('autoNextCheckbox')?.checked;
-    if (autoNextEnabled && AppState.dom.mainBtn) {
-        const displayTime = parseInt(document.getElementById('infoDisplayTime')?.value || '6');
-        
-        console.log('设置信息显示时长:', displayTime + '秒');
-        
-        // 清除之前的定时器（如果有）
-        if (AppState.quiz.autoNextTimer) {
-            clearTimeout(AppState.quiz.autoNextTimer);
-        }
-        
-        // 显示信息卡片
-        if (showCards) {
-            showCards();
-        }
-        
-        // 设置新的定时器
-        AppState.quiz.autoNextTimer = setTimeout(() => {
-            console.log('信息显示时长结束，检查是否进入下一题');
-            
-            // 检查是否仍然处于已回答状态
-            if (AppState.quiz.answered && AppState.dom.mainBtn.textContent === UI_TEXT.NEXT) {
-                if (resetInfo) {
-                    resetInfo();
-                }
-                if (hideCards) {
-                    hideCards();
-                }
-                
-                // 🔴 重置当前题目的状态，为下一题准备
-                AppState.quiz.hasAnsweredCurrent = false;
-                
-                AppState.dom.mainBtn.click();
-                console.log('进入下一题');
-            } else {
-                console.log('状态已改变，取消自动下一题');
-            }
-            
-            AppState.quiz.autoNextTimer = null;
-        }, displayTime * 1000);
-    } else {
-        if (AppState.dom.msgDisplay) {
-            AppState.dom.msgDisplay.textContent = '回答正确！点击"下一题"继续';
-        }
-    }
-    
-    syncButtons();
-    updateModeVisuals();
-}
-
+// 处理答对后的逻辑
 function getNoteNameFromIndex(index, difficulty, key) {
     if (difficulty === 'basic') {
       const scale = KEY_SCALES[key]?.basic || KEY_SCALES.C.basic;
@@ -594,8 +612,8 @@ function getQuestionBaseNote() {
     const baseMode = AppState.quiz.questionBaseMode || 'c';
     
     // 使用工具箱获取当前音域
-    const getCurrentRange = AppGlobal.getTool('getCurrentRange');
-    const currentRange = getCurrentRange ? getCurrentRange() : ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','A#3','B3'];
+    const getCurrentRangeFunc = AppGlobal.getTool('getCurrentRange');
+    const currentRange = getCurrentRangeFunc ? getCurrentRangeFunc() : ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','A#3','B3'];
     const isLowRange = currentRange[0] === 'C3';
     
     if (baseMode === 'c') {

@@ -3,18 +3,25 @@ import { AppState } from '../core/state.js';
 显示/反馈相关函数
 ===============*/
 export function showKeyChangeToast(message) {
-   // 使用统一的toast元素而不是创建新的
-   const toast = document.getElementById('toast');
-   if (toast) {
-     toast.textContent = message;
-     toast.classList.add('show');
-     
-     // 2秒后自动隐藏
-     setTimeout(() => {
-       toast.classList.remove('show');
-     }, 2000);
-   }
- }
+  const toast = document.getElementById('toast');
+  if (toast) {
+    // 区分立即生效和预选提示
+    if (message.includes('将在下一题生效')) {
+      toast.style.background = 'var(--accent-color)';
+      toast.style.fontWeight = '500';
+    } else {
+      toast.style.background = '';
+      toast.style.fontWeight = '';
+    }
+    
+    toast.textContent = message;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2000);
+  }
+}
 
 // 显示音频错误提示
 export function showAudioError(message, msgDisplayElement = null) {

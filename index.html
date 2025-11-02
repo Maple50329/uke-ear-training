@@ -10,9 +10,11 @@
 <script type="module" src="modules/core/boot.js"></script>
 
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="stylesheet" href="modules/modes/start-screen.css">
 <link rel="stylesheet" href="modules/ui/stats-modal.css">
+<link rel="stylesheet" href="mobile-standard.css">
+<link rel="stylesheet" href="modules/quiz/history-panel.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <style>
 /* 启用顶部标题栏 */
 .daw-header {
@@ -72,118 +74,6 @@
     color: var(--text);
     padding-bottom: 4px;
     border-bottom: 1px solid var(--btn-sec);
-}
-
-/* 修改音域按钮组样式 - 三个按钮连在一起 */
-.range-buttons {
-    display: flex;
-    margin-bottom: 12px;
-    background: var(--btn-sec);
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--btn-sec);
-}
-
-.range-btn, .mode-btn {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    background: var(--btn-sec);
-    color: var(--text);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s;
-    font-size: 13px;
-    position: relative;
-}
-
-/* 移除按钮之间的间隔 */
-.range-btn {
-    margin: 0;
-    border-radius: 0;
-}
-
-/* 第一个按钮左边圆角 */
-.range-btn:first-child {
-    border-top-left-radius: 7px;
-    border-bottom-left-radius: 7px;
-}
-
-/* 最后一个按钮右边圆角 */
-.range-btn:last-child {
-    border-top-right-radius: 7px;
-    border-bottom-right-radius: 7px;
-}
-
-/* 按钮之间的分隔线 */
-.range-btn:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 60%;
-    width: 1px;
-    background: var(--btn-sec-h);
-}
-
-/* 基准音设置的两个按钮样式 */
-.mode-buttons {
-    display: flex !important;
-    margin-bottom: 12px !important;
-    width: 66.66% !important;
-}
-
-.mode-btn {
-    margin: 0;
-    border-radius: 0;
-    flex: 1;
-    padding: 10px;
-    border: none;
-    background: var(--btn-sec);
-    color: var(--text);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s;
-    font-size: 13px;
-    position: relative;
-}
-
-/* 第一个模式按钮左边圆角 */
-.mode-btn:first-child {
-    border-top-left-radius: 7px;
-    border-bottom-left-radius: 7px;
-}
-
-/* 最后一个模式按钮右边圆角 */
-.mode-btn:last-child {
-    border-top-right-radius: 7px;
-    border-bottom-right-radius: 7px;
-}
-
-/* 模式按钮之间的分隔线 */
-.mode-btn:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 60%;
-    width: 1px;
-    background: var(--btn-sec-h);
-}
-
-.range-btn.active, .mode-btn.active {
-    background: var(--accent-color);
-    color: white;
-}
-
-/* 激活状态下移除分隔线 */
-.range-btn.active::after,
-.range-btn.active + .range-btn::after,
-.mode-btn.active::after,
-.mode-btn.active + .mode-btn::after {
-    display: none;
 }
 
 
@@ -341,13 +231,7 @@
     display: none;
 }
 
-@media (max-width: 768px) {
-    .key-btn {
-        padding: 20px 6px !important;
-        font-size: 1.6rem !important;
-        min-height: 70px !important;
-    }
-}
+
 
 /* 确保模态框在标题栏之上 */
 #rangeModal,
@@ -358,11 +242,6 @@
 #rangeMask,
 #settingsMask {
     z-index: 1000;
-}
-
-/* 暂时保持其他组件隐藏 */
-.status-bar {
-    display: none;
 }
 
 /* 选择框样式 */
@@ -392,73 +271,138 @@ select {
 .btn-secondary:hover {
     background: var(--btn-sec-h);
 }
-
-/* 基准音设置按钮样式 */
-.left-panel .mode-buttons {
-    display: flex !important;
-    margin-bottom: 12px !important;
-    width: 100% !important; 
-    background: var(--btn-sec) !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-    border: 1px solid var(--btn-sec) !important;
-}
-
-.left-panel .mode-btn {
-    flex: 1 !important;
-    padding: 10px !important;
-    border: none !important;
-    background: var(--btn-sec) !important;
-    color: var(--text) !important;
-    cursor: pointer !important;
-    text-align: center !important;
-    transition: all 0.2s !important;
-    font-size: 13px !important;
-    position: relative !important;
-    border-radius: 0 !important; /* 移除圆角 */
-    margin: 0 !important;
-}
-
-/* 第一个模式按钮左边圆角 */
-.left-panel .mode-btn:first-child {
-    border-top-left-radius: 7px !important;
-    border-bottom-left-radius: 7px !important;
-}
-
-/* 最后一个模式按钮右边圆角 */
-.left-panel .mode-btn:last-child {
-    border-top-right-radius: 7px !important;
-    border-bottom-right-radius: 7px !important;
-}
-
-/* 模式按钮之间的分隔线 */
-.left-panel .mode-btn:not(:last-child)::after {
-    content: '' !important;
-    position: absolute !important;
-    right: 0 !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    height: 60% !important;
-    width: 1px !important;
-    background: var(--btn-sec-h) !important;
-}
-
-.left-panel .mode-btn.active {
-    background: var(--accent-color) !important;
-    color: white !important;
-}
-
-/* 激活状态下移除分隔线 */
-.left-panel .mode-btn.active::after,
-.left-panel .mode-btn.active + .mode-btn::after 
-{
-    display: none !important;
-}
-
-
 </style>
 </head>
 <body>
+<!-- 浮动面板 -->
+<div id="simplePanel" class="simple-panel">
+  <div class="panel-header">
+    <div class="panel-title">音高信息</div>
+      <div class="panel-controls">
+        <button class="panel-close" title="关闭面板">✕</button>
+      </div>
+  </div>
+        
+<!-- 滑动容器 -->
+<div class="swipe-container">
+
+  <!-- 音高页面 -->
+  <div class="swipe-page active" id="pitch-page">
+    <div class="welcome-overlay active">
+      <div class="welcome-icon">🎵</div>
+        <h3 class="welcome-title">听音辨识</h3>
+        <p class="welcome-subtitle">探索音乐的世界，提升听音能力</p>
+        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
+      </div>
+        
+        <div class="pitch-content">
+          <span class="dominant-pitch" id="currentPitch"></span>
+          <span class="watermark-degree" id="currentDegree"></span>
+          <span class="frequency-display" id="currentFrequency"></span>
+        </div>
+  </div>
+    
+    <!-- 音程页面 -->
+  <div class="swipe-page" id="interval-page">
+    <div class="welcome-overlay active">
+      <div class="welcome-icon">🎶</div>
+        <h3 class="welcome-title">音程分析</h3>
+        <p class="welcome-subtitle">了解音符之间的和谐关系</p>
+        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
+    </div>
+        
+    <div class="interval-content">
+      <div class="interval-name" id="intervalName">--</div>
+        <div class="interval-detail" id="intervalDetail">--</div>
+          <div class="interval-properties">
+            <div class="property-group">
+              <div class="property-row">
+                <span class="property-label">稳定性</span>
+                <span class="property-value" id="intervalStability">--</span>
+              </div>
+              <div class="property-row">
+                <span class="property-label">解决倾向</span>
+                <span class="property-value" id="intervalTendency">--</span>
+              </div>
+            </div>
+              <div class="property-group">
+                <div class="property-row">
+                  <span class="property-label">音程性质</span>
+                  <span class="property-value" id="intervalNature">--</span>
+                </div>
+                <div class="property-row">
+                  <span class="property-label">色彩特征</span>
+                  <span class="property-value" id="intervalColor">--</span>
+                </div>
+              </div>
+         </div>
+        </div>
+    </div>
+    <!-- 尤克里里页面 -->
+    <div class="swipe-page" id="ukulele-page">
+        <div class="welcome-overlay active">
+            <div class="welcome-icon">🎸</div>
+            <h3 class="welcome-title">尤克里里指位</h3>
+            <p class="welcome-subtitle">探索音高的多种按法</p>
+            <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
+        </div>
+        
+        <div class="ukulele-content">
+            <!-- 主要信息区域 - 左右布局 -->
+            <div class="uke-main-info">
+                <!-- 左侧：音名信息 + 下拉框 -->
+                <div class="uke-left-section">
+                    <div class="uke-note-section">
+                        <div class="uke-note-name">
+                            <span class="uke-note" id="ukeNoteName">--</span>
+                            <span class="uke-note-type" id="ukeNoteType">--</span>
+                        </div>
+                    </div>
+                    <!-- 调性选择器放在音名正下方 -->
+                    <div class="uke-key-selector">
+                        <select id="ukeKeySelect" class="uke-key-dropdown">
+                            <option value="C">C调</option>
+                            <option value="D">D调</option>
+                            <option value="E">E调</option>
+                            <option value="F">F调</option>
+                            <option value="G">G调</option>
+                            <option value="A">A调</option>
+                            <option value="B">B调</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 右侧：指位信息 -->
+                <div class="uke-right-section">
+                    <!-- 常用指位 -->
+                    <div class="uke-position-group">
+                        <div class="position-label">常用指位</div>
+                        <div class="position-values" id="ukeCommonPositions">--</div>
+                    </div>
+                    
+                    <!-- 高把位指位 -->
+                    <div class="uke-position-group">
+                        <div class="position-label">高把位指位</div>
+                        <div class="position-values" id="ukeHighPositions">--</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 底部：和弦信息 -->
+            <div class="uke-chords-section">
+                <div class="chords-label">相关和弦：</div>
+                <div class="chords-values" id="ukeRelatedChords">--</div>
+            </div>
+        </div>
+    </div>
+        <!-- 页面指示器 -->
+        <div class="page-indicator">
+            <span class="indicator-dot active" data-page="0"></span>
+            <span class="indicator-dot" data-page="1"></span>
+            <span class="indicator-dot" data-page="2"></span>
+        </div>
+        </div>
+    </div> 
 <!-- 开始屏幕覆盖层 -->
 <div id="startScreen" class="start-screen active">
     <div class="start-container">
@@ -571,7 +515,7 @@ select {
             </div>
         </div>
 
-        <button id="resetQuestionBtn" class="icon-btn" title="复位当前题目（R键）">🔄</button>
+        <button id="resetQuestionBtn" class="icon-btn" title="重置当前题目（R键）">🔄</button>
         <button id="settingsBtn" class="icon-btn" title="设置">⚙️</button>
     </div>
 </header>
@@ -630,12 +574,13 @@ select {
             <label for="enableScalePlayback">先播放音阶</label>
         </div>
     </div>
-    <div class="panel-section">
-        <h3 class="panel-title">自定义采样</h3>
-        <button id="customBtn" class="btn-secondary" style="width:100%;margin-bottom:8px;">自定义采样</button>
-        <button id="resetBtn" class="btn-secondary" style="width:100%;">恢复默认采样</button>
-        <input type="file" id="fileIn" multiple accept="audio/*" style="display:none">
-        <div id="samplingStatus" style="margin-top:12px;font-size:12px;color:var(--sub); display: none;">
+    <div id="customSamplingSection" style="display:none;">
+        <div class="panel-section">
+          <h3 class="panel-title">自定义采样</h3>
+          <button id="customBtn" class="btn-secondary" style="width:100%;margin-bottom:8px;">自定义采样</button>
+          <button id="resetBtn" class="btn-secondary" style="width:100%;">恢复默认采样</button>
+          <input type="file" id="fileIn" multiple accept="audio/*" style="display:none">
+          <div id="samplingStatus" style="margin-top:12px;font-size:12px;color:var(--sub); display: none;"></div>
         </div>
     </div>
 </aside>
@@ -648,7 +593,7 @@ select {
         </div>
     
         <!-- 消息显示 -->
-        <div id="msg" style="display: block;">点击开始训练</div>
+        <div id="msg" style="display: block;">点击开始练习</div>
         
         <!-- 添加键盘提示 -->
         <div class="keyboard-hint" style="font-size: 12px; color: var(--sub);">
@@ -656,138 +601,10 @@ select {
         </div>
         
         <div id="statusBox"></div>
-        <button id="startBtn" class="btn-primary" style="display: none;">播放题目</button>
-        <div id="ans"></div>
+     <button id="startBtn" class="btn-primary" style="display: none;">播放题目</button>
+     
+     <div id="ans"></div>
     </div>
-
-        <!-- 浮动面板 -->
-<div id="simplePanel" class="simple-panel">
-        <div class="panel-header">
-        <div class="panel-title">音高信息</div>
-        <div class="panel-controls">
-            <button class="panel-close" title="关闭面板">✕</button>
-        </div>
-    </div>
-    
-        <!-- 滑动容器 -->
-        <div class="swipe-container">
-<!-- 音高页面 -->
-<div class="swipe-page active" id="pitch-page">
-    <div class="welcome-overlay active">
-        <div class="welcome-icon">🎵</div>
-        <h3 class="welcome-title">听音辨识</h3>
-        <p class="welcome-subtitle">探索音乐的世界，提升听音能力</p>
-        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
-    </div>
-    
-    <div class="pitch-content">
-        <span class="dominant-pitch" id="currentPitch"></span>
-        <span class="watermark-degree" id="currentDegree"></span>
-        <span class="frequency-display" id="currentFrequency"></span>
-    </div>
-</div>
-
-<!-- 音程页面 -->
-<div class="swipe-page" id="interval-page">
-    <div class="welcome-overlay active">
-        <div class="welcome-icon">🎶</div>
-        <h3 class="welcome-title">音程分析</h3>
-        <p class="welcome-subtitle">了解音符之间的和谐关系</p>
-        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
-    </div>
-    
-    <div class="interval-content">
-        <div class="interval-name" id="intervalName">--</div>
-        <div class="interval-detail" id="intervalDetail">--</div>
-        <div class="interval-properties">
-            <div class="property-group">
-                <div class="property-row">
-                    <span class="property-label">稳定性</span>
-                    <span class="property-value" id="intervalStability">--</span>
-                </div>
-                <div class="property-row">
-                    <span class="property-label">解决倾向</span>
-                    <span class="property-value" id="intervalTendency">--</span>
-                </div>
-            </div>
-            <div class="property-group">
-                <div class="property-row">
-                    <span class="property-label">音程性质</span>
-                    <span class="property-value" id="intervalNature">--</span>
-                </div>
-                <div class="property-row">
-                    <span class="property-label">色彩特征</span>
-                    <span class="property-value" id="intervalColor">--</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- 尤克里里页面 -->
-<div class="swipe-page" id="ukulele-page">
-    <div class="welcome-overlay active">
-        <div class="welcome-icon">🎸</div>
-        <h3 class="welcome-title">尤克里里指位</h3>
-        <p class="welcome-subtitle">探索音高的多种按法</p>
-        <div class="welcome-swipe-hint">◀ 滑动查看其他信息 ▶</div>
-    </div>
-    
-    <div class="ukulele-content">
-        <!-- 主要信息区域 - 左右布局 -->
-        <div class="uke-main-info">
-            <!-- 左侧：音名信息 + 下拉框 -->
-            <div class="uke-left-section">
-                <div class="uke-note-section">
-                    <div class="uke-note-name">
-                        <span class="uke-note" id="ukeNoteName">--</span>
-                        <span class="uke-note-type" id="ukeNoteType">--</span>
-                    </div>
-                </div>
-                <!-- 调性选择器放在音名正下方 -->
-                <div class="uke-key-selector">
-                    <select id="ukeKeySelect" class="uke-key-dropdown">
-                        <option value="C">C调</option>
-                        <option value="D">D调</option>
-                        <option value="E">E调</option>
-                        <option value="F">F调</option>
-                        <option value="G">G调</option>
-                        <option value="A">A调</option>
-                        <option value="B">B调</option>
-                    </select>
-                </div>
-            </div>
-            
-            <!-- 右侧：指位信息 -->
-            <div class="uke-right-section">
-                <!-- 常用指位 -->
-                <div class="uke-position-group">
-                    <div class="position-label">常用指位</div>
-                    <div class="position-values" id="ukeCommonPositions">--</div>
-                </div>
-                
-                <!-- 高把位指位 -->
-                <div class="uke-position-group">
-                    <div class="position-label">高把位指位</div>
-                    <div class="position-values" id="ukeHighPositions">--</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 底部：和弦信息 -->
-        <div class="uke-chords-section">
-            <div class="chords-label">相关和弦：</div>
-            <div class="chords-values" id="ukeRelatedChords">--</div>
-        </div>
-    </div>
-</div>
-    <!-- 页面指示器 -->
-    <div class="page-indicator">
-        <span class="indicator-dot active" data-page="0"></span>
-        <span class="indicator-dot" data-page="1"></span>
-        <span class="indicator-dot" data-page="2"></span>
-    </div>
-    </div>
-</div> 
 </main>
 
 <!-- 右侧面板 -->
@@ -796,9 +613,9 @@ select {
 
 <aside class="right-panel">
     <div class="panel-section">
-        <h3 class="panel-title">📊 练习统计</h3>
+        <h3 class="panel-title">练习统计</h3>
 
-        <!-- 核心指标 - 简约风格 -->
+        <!-- 练习统计 -->
         <div class="key-metrics-simple">
             <div class="stats-section">
                 <!-- 总练习数量 -->
@@ -851,11 +668,19 @@ select {
     <div class="panel-section">
         <h3 class="panel-title">历史记录</h3>
         <div class="history-list" id="historyList">
-            <div class="history-empty">暂无播放记录</div>
+            <div class="history-empty">暂无练习记录，答对题目后将会出现在这里</div>
+        </div>
+        <!-- 滑动显示的高级清空 -->
+        <div class="history-actions">
+            <div class="history-stats">
+                <span id="historyCount">0</span> 条记录
+            </div>
+            <button id="clearHistoryBtn" class="clear-history-btn" disabled>
+                🗑️ 清空
+            </button>
         </div>
     </div>
 </aside>
-<button id="mobileSidebarToggle" class="mobile-sidebar-toggle" style="display: none;">☰</button>
 </div>
 <!-- 原有的模态框和遮罩 -->
 <div id="rangeModal">
@@ -882,33 +707,129 @@ select {
 </div>
 
 <div id="toast" class="toast"></div>
-<script type="module">
-    // 音域按钮事件处理（模块化版本）
-    import { updateRange } from './modules/ui/range-manager.js';
     
-    document.addEventListener('click', function (e) {
-        // 判断点击的是否是设置面板里的音域按钮
-        if (e.target.classList && e.target.classList.contains('rangeBtn') && e.target.closest('#settingsPanel')) {
-            const range = e.target.dataset.range;
-            if (!range) return;
+<!-- 移动端专属元素 -->
+<div id="mobileElements">
+  <!-- 移动端描述信息栏 -->
+  <div id="mobileDescBar" class="mobile-desc-bar">
+    <span id="mobileDescText">点击开始练习</span>
+  </div>
+  
+  <!-- 底部固定区域组合 -->
+  <div class="mobile-bottom-container">
+    <!-- 操作栏 -->
+    <div class="mobile-bottom-controls">
+      <button class="mobile-control-btn setting-btn">设置</button>
+      <button class="mobile-control-btn history-btn">历史记录</button>
+    </div>
     
-            // 使用模块函数
-            updateRange(range);
+    <!-- 属性信息栏 -->
+    <div class="mobile-properties-panel">
+      <div class="simple-properties">
+        <div class="property-items">
+          <div class="property-item-simple">
+            <span class="property-label-simple">音高：</span>
+            <span class="property-value-simple" id="simplePitch">--</span>
+          </div>
+          <div class="property-item-simple">
+            <span class="property-label-simple">基准音：</span>
+            <span class="property-value-simple" id="simpleBaseNote">C4</span>
+          </div>
+          <div class="property-item-simple">
+            <span class="property-label-simple">音程度数：</span>
+            <span class="property-value-simple" id="simpleInterval">--</span>
+          </div>
+        </div>
+        <button class="expand-detail-btn">详细</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移动端侧滑面板 -->
+<div id="mobileSidePanels">
+    <!-- 左侧设置面板 -->
+    <div id="mobileLeftPanel" class="mobile-side-panel left-panel">
+      <div class="panel-header">
+        <div class="panel-title">设置</div>
+        <button class="panel-close">✕</button>
+      </div>
+      <div class="panel-content">
+        <!-- 设置内容将由JavaScript动态填充 -->
+        <div class="mobile-panel-placeholder">
+          <p>设置选项加载中...</p>
+        </div>
+      </div>
+      <div class="mobile-panel-footer">
+        <button class="panel-close">关闭</button>
+    </div>
+    </div>
+  
+<!-- 右侧历史面板 -->
+<div id="mobileRightPanel" class="mobile-side-panel right-panel">
+  <div class="panel-header">
+    <div class="panel-title">统计与历史</div>
+    <button class="panel-close">✕</button>
+  </div>
+  <div class="panel-content">
+    <!-- 统计信息区域 -->
+    <div class="mobile-stats-section">
+      <h4 style="margin: 0 0 16px 0; color: var(--text);">练习统计</h4>
+      <div class="mobile-stat-list">
+        <div class="mobile-stat-item">
+          <span class="mobile-stat-label">今日练习:</span>
+          <span class="mobile-stat-value" id="mobileTotalPlays">0题</span>
+        </div>
+        <div class="mobile-stat-item">
+          <span class="mobile-stat-label">首击正确:</span>
+          <span class="mobile-stat-value" id="mobileCorrectCount">0题</span>
+        </div>
+        <div class="mobile-stat-item">
+          <span class="mobile-stat-label">正确率:</span>
+          <span class="mobile-stat-value" id="mobileAccuracyRate">0%</span>
+        </div>
+        <div class="mobile-stat-item">
+          <span class="mobile-stat-label">当前连击:</span>
+          <span class="mobile-stat-value" id="mobileCurrentStreak">0连胜</span>
+        </div>
+        <div class="mobile-stat-item">
+          <span class="mobile-stat-label">最高连击:</span>
+          <span class="mobile-stat-value" id="mobileMaxStreak">0连胜</span>
+        </div>
+      </div>
+      
+      <!-- 查看详细信息按钮 -->
+      <button id="mobileViewDetailsBtn" class="mobile-view-details-btn">
+        📈 查看详细信息
+      </button>
+    </div>
+
+    <!-- 历史记录区域 - 完全复用桌面端结构 -->
+    <div class="mobile-history-section" style="margin-top: 24px; border-top: 1px solid var(--btn-sec); padding-top: 20px;">
+    <h4 style="margin: 0 0 16px 0; color: var(--text);">最近记录</h4>
+    <div class="history-list" id="mobileHistoryList">
+        <div class="history-empty">暂无练习记录，答对题目后将会出现在这里</div>
+    </div>
     
-            // 同步左侧面板按钮状态
-            document.querySelectorAll('.left-panel .range-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.range === range);
-            });
+    <!-- 历史记录操作栏 -->
+    <div class="history-actions">
+        <div class="history-stats">
+            <span id="mobileHistoryCount">0</span> 条记录
+        </div>
+        <button id="mobileClearHistoryBtn" class="clear-history-btn" disabled>
+            🗑️ 清空
+        </button>
+    </div>
+</div>
+  </div>
+  <div class="mobile-panel-footer">
+    <button class="panel-close">关闭</button>
+  </div>
+</div>
     
-            // 同步设置面板按钮状态
-            const rangeBtnGroup = e.target.closest('#rangeBtnGroup');
-            if (rangeBtnGroup) {
-                rangeBtnGroup.querySelectorAll('.rangeBtn').forEach(btn => {
-                    btn.classList.toggle('active', btn === e.target);
-                });
-            }
-        }
-    });
-    </script>
+    <!-- 遮罩层 -->
+    <div id="mobilePanelOverlay" class="mobile-panel-overlay"></div>
+  </div>
+</div>
+
 </body>
 </html>

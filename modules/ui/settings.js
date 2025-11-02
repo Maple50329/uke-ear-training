@@ -1,10 +1,9 @@
 import { AppState } from '../core/state.js';
 import { showKeyChangeToast } from '../utils/displayHelpers.js';
-import { updateModeButtonsVisualState } from './feedback.js';
 import { KEY_SCALES } from '../core/constants.js';
 import { getANoteForKey, calculateIntervalType } from '../utils/helpers.js';
 import { updateIntervalDisplayInfo } from './feedback.js';
-
+import AppGlobal from '../core/app.js';
 // 初始化信息显示时长滑动条（函数名称保持不变）
 export function initInfoDisplaySlider() {
     const timeSlider = document.getElementById('infoDisplayTime');
@@ -76,24 +75,29 @@ export function initInfoDisplaySlider() {
   }
 
   export function initBaseModeButtons() {
+    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
     const modeButtons = document.querySelectorAll('.mode-btn');
     
     modeButtons.forEach(btn => {
       btn.addEventListener('click', function() {
         const selectedMode = this.dataset.mode;
         
-        // 如果在播放中或已开始但未完成答题，显示提示并阻止操作
+        // 🔴 修改：播放中或已开始但未完成答题时，改为预选模式
         if (AppState.quiz.locked || (AppState.quiz.hasStarted && !AppState.quiz.answered)) {
-          showKeyChangeToast('基准音更改将在下一题生效');
+          // 允许UI切换，但标记为预选
+          modeButtons.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          AppState.quiz.pendingBaseModeChange = selectedMode;
+          showKeyChangeToast('基准音模式更改将在下一题生效');
           return;
         }
         
-        // 如果已经答题完成，提示下一题生效
+        // 🔴 修改：已答题完成时也改为预选模式
         if (AppState.quiz.answered) {
-          showKeyChangeToast('基准音更改将在下一题生效');
-          // 允许切换，但只是预览，实际生效在下一题
           modeButtons.forEach(b => b.classList.remove('active'));
           this.classList.add('active');
+          AppState.quiz.pendingBaseModeChange = selectedMode;
+          showKeyChangeToast('基准音模式更改将在下一题生效');
           return;
         }
         
@@ -112,11 +116,11 @@ export function initInfoDisplaySlider() {
           const intervalType = calculateIntervalType(baseNote, targetNote);
           
           if (intervalType) {
-            updateIntervalDisplayInfo(baseNote, targetNote, intervalType); // 改为调用音程显示函数
+            updateIntervalDisplayInfo(baseNote, targetNote, intervalType);
           }
         }
       });
     });
-    updateModeButtonsVisualState();
-  }
+    updateModeVisuals();
+}
 

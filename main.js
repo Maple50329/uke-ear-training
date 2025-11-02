@@ -2,7 +2,6 @@ import { initRangeSystem, updateRange } from './modules/ui/range-manager.js';
 import { initModalEvents } from './modules/ui/modal-manager.js';
 import { initTheme, watchSystemTheme } from './modules/ui/theme-manager.js';
 import { initAllEventBindings } from './modules/ui/event-bindings.js';
-import { SAMPLE } from './modules/audio/sampler-manager.js';
 
 function showToast(message, duration = 2000) {
   const toast = document.getElementById('toast');
@@ -20,11 +19,6 @@ function showToast(message, duration = 2000) {
 function initialize() {
     
     try {
-        //初始化采样系统
-        if (SAMPLE && SAMPLE.renderStatus) {
-            SAMPLE.renderStatus();
-        }
-        
         //初始化各子系统
         initRangeSystem();     // 音域系统
         initTheme();          // 主题系统

@@ -1,4 +1,3 @@
-import { AppState } from '../core/state.js';
 import { debounce } from '../utils/helpers.js';
 import AppGlobal from '../core/app.js';
 let currentPanelPage = 0;

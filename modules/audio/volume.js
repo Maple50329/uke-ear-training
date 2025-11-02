@@ -5,19 +5,19 @@ import { AppState } from '../core/state.js';
 function updateMasterVolume() {
   if (!AppState.audio.masterVolume) return;
   
-  // 确保音量在有效范围内
   let effectiveVolume = AppState.audio.isMuted ? 0 : AppState.audio.volume;
   effectiveVolume = Math.max(0, Math.min(1, effectiveVolume));
   
   if (effectiveVolume === 0) {
-    AppState.audio.masterVolume.volume.value = -Infinity; // 完全静音
+    AppState.audio.masterVolume.volume.value = -Infinity;
   } else {
-    // 线性映射：0-1 → -40dB to 0dB
     const MIN_DB = -40;
     const MAX_DB = 0;
     const dbVolume = MIN_DB + (effectiveVolume * (MAX_DB - MIN_DB));
     AppState.audio.masterVolume.volume.value = dbVolume;
   }
+  
+  // 注意：现在只控制 Tone.js 的音量，不控制 HTML5 Audio
 }
 
 // 更新音量显示

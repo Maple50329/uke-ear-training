@@ -1,6 +1,7 @@
 import { AppState } from '../core/state.js';
 import { SAMPLER_CONFIG } from '../core/constants.js';
 import { updateMasterVolume } from '../audio/volume.js';
+import { playbackManager } from './playback-manager.js';
 
 // 初始化Sampler
 function initSampler() {
@@ -9,7 +10,6 @@ function initSampler() {
       ...SAMPLER_CONFIG,
       onload: () => {
         AppState.audio.samplerReady = true;
-        console.log('✅ Sampler加载完成');
       },
       onerror: (error) => {
         console.error('❌ Sampler加载失败:', error);
@@ -19,48 +19,27 @@ function initSampler() {
   }
 }
 
-// 使用Sampler播放音符
-function playNoteSampler(noteName, duration = 1.5) {
-  return new Promise((resolve) => {
-    if (!AppState.audio.samplerReady || !AppState.audio.sampler || !noteName) {
-      console.warn('Sampler未就绪，无法播放:', noteName);
-      resolve();
-      return;
-    }
-    
-    try {
-      // 确保主音量已更新
-      updateMasterVolume();
-            
-      // 播放音符
-      AppState.audio.sampler.triggerAttackRelease(noteName, duration);
-      
-      setTimeout(resolve, duration * 1000);
-    } catch (error) {
-      console.error('Sampler播放失败:', error, '音符:', noteName);
-      resolve();
-    }
-  });
+async function playNoteSampler(noteName, duration = 1.5) {
+  if (!noteName) return;
+  
+  try {
+      await playbackManager.playNote(noteName, duration);
+  } catch (error) {
+      console.error('播放失败:', error);
+  }
 }
 
 // 停止所有音频的函数
 function stopAllAudio() {
-  // 停止主Sampler播放
+  playbackManager.stopAll();
+  
+  // 原有的停止逻辑
   if (AppState.audio.sampler) {
-    AppState.audio.sampler.releaseAll();
+      AppState.audio.sampler.releaseAll();
   }
-  
-  // 停止音效Sampler播放
   if (AppState.audio.sfxSampler) {
-    AppState.audio.sfxSampler.releaseAll();
+      AppState.audio.sfxSampler.releaseAll();
   }
-  
-  // 原有的停止HTML5音频的逻辑
-  const allAudioElements = document.querySelectorAll('audio');
-  allAudioElements.forEach(audio => {
-    audio.pause();
-    audio.currentTime = 0;
-  });
 }
 
 function stopPlayback() {
@@ -83,10 +62,12 @@ function stopPlayback() {
 
 // 停止所有音符播放
 function stopAllNotes() {
-  if (window.SAMPLE?.audioElements) {
-    Object.values(window.SAMPLE.audioElements).forEach(audio => {
-      audio.pause();
-    });
+  // 只停止 Tone.js 的播放
+  if (AppState.audio.sampler) {
+    AppState.audio.sampler.releaseAll();
+  }
+  if (AppState.audio.sfxSampler) {
+    AppState.audio.sfxSampler.releaseAll();
   }
 }
 

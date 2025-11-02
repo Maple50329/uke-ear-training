@@ -1,6 +1,7 @@
 import { AppState } from '../core/state.js';
 import { UI_TEXT } from '../core/constants.js';
-import { handleResetQuestion } from '../quiz/reset-manager.js';
+import AppGlobal from '../core/app.js';  // 添加这行导入
+
 // 更新大按钮状态函数
 function updateBigButtonState() {
     const bigPlayBtn = document.getElementById('big-play-btn');
@@ -88,18 +89,31 @@ function initResetButton() {
     return;
   }
   
-  // 初始状态启用
   resetBtn.disabled = false;
+
+  resetBtn.addEventListener('click', () => {
+    // 使用工具箱获取复位处理函数
+    const resetHandler = AppGlobal.getTool('handleResetQuestion');
+    if (resetHandler) {
+      resetHandler();
+    } else {
+      // 备用方案：直接导入调用
+      import('./reset-manager.js').then(module => {
+        module.handleResetQuestion();
+      }).catch(error => {
+        console.error('复位处理失败:', error);
+      });
+    }
+  });
   
-  // 点击事件
-  resetBtn.addEventListener('click', handleResetQuestion);
-  
-  // 键盘快捷键 (R键)
   document.addEventListener('keydown', (e) => {
     if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       if (!resetBtn.disabled) {
-        handleResetQuestion();
+        const resetHandler = AppGlobal.getTool('handleResetQuestion');
+        if (resetHandler) {
+          resetHandler();
+        }
       }
     }
   });

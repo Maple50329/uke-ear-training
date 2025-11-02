@@ -1,42 +1,7 @@
-import { SAMPLE } from '../audio/sampler-manager.js';
 import { toggleTheme } from './theme-manager.js';
 import { getANoteForKey } from '../utils/helpers.js';
 import { KEY_SCALES } from '../core/constants.js';
 import { statsModal } from './stats-modal.js';
-import statsManager from '../quiz/stats-manager.js';
-// 绑定自定义采样事件
-export function bindCustomSampleEvents() {
-    const customBtn = document.getElementById('customBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const fileIn = document.getElementById('fileIn');
-    
-    if (customBtn && fileIn) {
-        // 移除旧的事件监听器
-        customBtn.replaceWith(customBtn.cloneNode(true));
-        const freshCustomBtn = document.getElementById('customBtn');
-        
-        freshCustomBtn.onclick = () => fileIn.click();
-    }
-    
-    if (resetBtn) {
-        // 移除旧的事件监听器
-        resetBtn.replaceWith(resetBtn.cloneNode(true));
-        const freshResetBtn = document.getElementById('resetBtn');
-        
-        freshResetBtn.onclick = () => {
-            SAMPLE.reset();
-        };
-    }
-    
-    if (fileIn) {
-        fileIn.onchange = (e) => {
-            if (e.target.files.length) {
-                SAMPLE.load(Array.from(e.target.files));
-            }
-            e.target.value = '';
-        };
-    }
-}
 
 // 绑定主题事件
 export function bindThemeEvents() {
@@ -94,7 +59,14 @@ function updateBaseNoteSetting(mode) {
     }  
     
     if (window.AppState) {
+        // 更新应用状态中的基准音
         window.AppState.baseNote = baseNote;
+        
+        // 🔴 注意：这里不更新 questionBaseMode，因为它只在出题时更新
+        // 只触发UI设置更新事件，用于其他UI反馈
+        window.dispatchEvent(new CustomEvent('base-mode-setting-changed', { 
+            detail: { mode } 
+        }));
     }
 }
 
@@ -125,7 +97,6 @@ export function bindStatsModalEvents() {
 
 // 初始化所有事件绑定
 export function initAllEventBindings() {
-    bindCustomSampleEvents();
     bindThemeEvents();
     bindCoreEvents();
     bindStatsModalEvents();

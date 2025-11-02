@@ -2,7 +2,7 @@ import { AppState } from '../core/state.js';
 
 class StatsManager {
   constructor() {
-    // 🎯 只在这里初始化一次！
+
     this.stats = {
       // 今日统计
       today: {
@@ -21,7 +21,7 @@ class StatsManager {
         current: 0,
         max: 0
       },
-      // 🎯 完整的分类统计结构
+      // 分类统计结构
       categories: {
         baseNotes: {
           'C': { questions: 0, correct: 0, accuracy: 0 },
@@ -56,6 +56,7 @@ class StatsManager {
     this.loadStats();
     this.checkNewDay();
     this.initializeStreakSystem();
+
   }
 
 /**
@@ -251,9 +252,9 @@ updateBestAccuracy() {
   /**
    * 更新统计显示
    */
-  updateDisplay() {
+   updateDisplay() {
     const stats = this.getStats();
-    
+
     // 更新总练习数量
     this.updateStatElement('totalExercises', `${stats.totalQuestions}题`);
     
@@ -262,15 +263,18 @@ updateBestAccuracy() {
     this.updateStatElement('correctCount', `${stats.mastered}题`);
     this.updateStatElement('accuracyRate', `${stats.masteryRate}%`);
     
+    // ✅ 关键修复：确保更新总正确率
+    this.updateStatElement('totalAccuracyRate', `${stats.totalAccuracyRate}%`);
+    
     // 更新进度条
     const accuracyProgress = document.getElementById('accuracyProgress');
     if (accuracyProgress) {
-        accuracyProgress.style.width = `${stats.masteryRate}%`;
+      accuracyProgress.style.width = `${stats.masteryRate}%`;
     }
     
-    // 更新连胜
-    this.updateStatElement('currentStreak', `${stats.currentStreak}连胜`);
-    this.updateStatElement('maxStreak', `${stats.maxStreak}连胜`);
+    // 更新连胜显示
+    this.updateStatElement('currentStreak-label', `${stats.currentStreak}连胜`);
+    this.updateStatElement('maxStreak-label', `${stats.maxStreak}连胜`);
   }
   
   /**
@@ -346,60 +350,66 @@ updateBestAccuracy() {
     this.resetCurrentQuestion();
   }
 
-  /**
-   * 🎯 修复的 loadStats 方法 - 不重建对象！
-   */
-async loadStats() {
-  try {
+  loadStats() {
+    try {
       const saved = localStorage.getItem('earTrainingStats');
       if (saved) {
-          const parsed = JSON.parse(saved);
-          
-          // 🎯 只更新具体字段，保持结构完整
-          if (parsed.today) {
-              this.stats.today = { 
-                  questions: parsed.today.questions || 0,
-                  firstTryCorrect: parsed.today.firstTryCorrect || 0,
-                  retryCorrect: parsed.today.retryCorrect || 0,
-                  wrongAnswers: parsed.today.wrongAnswers || 0
-              };
-          }
-          
-          if (parsed.history) {
-              this.stats.history = {
-                  totalQuestions: parsed.history.totalQuestions || 0,
-                  totalCorrect: parsed.history.totalCorrect || 0
-              };
-          }
-          
-          if (parsed.streaks) {
-              this.stats.streaks = {
-                  current: parsed.streaks.current || 0,
-                  max: parsed.streaks.max || 0
-              };
-          }
-          
-          if (parsed.currentQuestion) {
-              this.stats.currentQuestion = { ...parsed.currentQuestion };
-          }
-          
-          // 合并分类统计，确保结构不丢失
-          if (parsed.categories) {
-            this.mergeCategories(parsed.categories);
-          }
-          
-          this.resetCurrentQuestion();
-          this.updateDisplay();
-      }
-  } catch (error) {
-      console.warn('加载统计数据失败:', error);
-  }
+        const parsed = JSON.parse(saved);
   
-  // ✅ 通知外部：数据已加载完成
-  window.dispatchEvent(new CustomEvent('statsLoaded'));
-}
+        // 先加载基础数据
+        if (parsed.today) {
+          this.stats.today = { 
+            questions: parsed.today.questions || 0,
+            firstTryCorrect: parsed.today.firstTryCorrect || 0,
+            retryCorrect: parsed.today.retryCorrect || 0,
+            wrongAnswers: parsed.today.wrongAnswers || 0
+          };
+        }
+        
+        if (parsed.history) {
+          this.stats.history = {
+            totalQuestions: parsed.history.totalQuestions || 0,
+            totalCorrect: parsed.history.totalCorrect || 0
+          };
+        }
+        
+        if (parsed.streaks) {
+          this.stats.streaks = {
+            current: parsed.streaks.current || 0,
+            max: parsed.streaks.max || 0
+          };
+        }
+        
+        // 合并分类统计，确保结构不丢失
+        if (parsed.categories) {
+          this.mergeCategories(parsed.categories);
+        }
+        
+        // 确保连胜数据正确
+        if (parsed.streaks) {
+          this.stats.streaks = {
+            current: parsed.streaks.current || 0,
+            max: Math.max(parsed.streaks.max || 0, this.stats.streaks.current || 0)
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('加载统计数据失败:', error);
+    }
+    
+    // 重置当前题目状态
+    this.resetCurrentQuestion();
+    
+    // ✅ 关键修改：确保在数据完全加载后再更新显示
+    setTimeout(() => {
+      this.updateDisplay();
+      
+      // ✅ 通知外部：数据已加载完成
+      window.dispatchEvent(new CustomEvent('statsLoaded'));
+    }, 100);
+  }
 
-// 修复 getStats 方法，确保正确计算总正确率
+// 确保正确计算总正确率
 getStats() {
   const today = this.stats.today;
   const totalAttempted = today.questions;
@@ -424,7 +434,7 @@ getStats() {
       // 历史统计
       totalQuestions: this.stats.history.totalQuestions,
       totalCorrect: this.stats.history.totalCorrect,
-      totalAccuracyRate: totalAccuracyRate, // 新增：总正确率
+      totalAccuracyRate: totalAccuracyRate,
       
       // 连胜记录
       currentStreak: this.stats.streaks.current,
@@ -441,6 +451,7 @@ getStats() {
       accuracyRate: todayAccuracyRate
   };
 }
+
 
   /**
    * 合并分类统计数据
@@ -463,7 +474,7 @@ getStats() {
     });
   }
 
-  async saveStats() {
+  saveStats() {
     try {
       localStorage.setItem('earTrainingStats', JSON.stringify(this.stats));
     } catch (error) {

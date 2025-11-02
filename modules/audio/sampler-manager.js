@@ -1,5 +1,7 @@
+// modules/audio/sampler-manager.js
 import { notes } from '../core/config.js';
 import { showToast } from '../ui/feedback.js';
+import { playbackManager } from './playback-manager.js';
 
 // 默认音频文件路径
 const DEFAULT_AUDIOS = {};
@@ -13,6 +15,19 @@ export const SAMPLE = {
     buffers: new Array(24),
     loadedCount: 0,
     onLoadComplete: null,
+    
+    /**
+     * 获取所有自定义采样的 URL 映射
+     */
+    getNoteUrlMap() {
+        const urlMap = {};
+        notes.forEach((note, index) => {
+            if (this.buffers[index] && !this.buffers[index].startsWith('data:')) {
+                urlMap[note] = this.buffers[index];
+            }
+        });
+        return urlMap;
+    },
     
     // 渲染采样状态
     renderStatus() {
@@ -72,8 +87,10 @@ export const SAMPLE = {
         }
     },
     
-    // 加载自定义采样文件
-    load(files) {
+    /**
+     * 加载自定义采样文件并更新播放系统
+     */
+    async load(files) {
         const re = /(C|C#|D|D#|E|F|F#|G|G#|A|A#|B)\d/i;
 
         Array.from(files).forEach(f => {
@@ -95,40 +112,56 @@ export const SAMPLE = {
         this.useCustom = this.loadedCount > 0;
         this.renderStatus();
 
-        showToast(
-            this.loadedCount > 0
-                ? `已加载 ${this.loadedCount}/${notes.length} 个采样`
-                : '未识别到有效采样文件'
-        );
+        // 重新加载到播放系统
+        if (this.useCustom) {
+            const noteUrlMap = this.getNoteUrlMap();
+            await playbackManager.reloadCustomSamples(noteUrlMap);
+            
+            showToast(`已加载 ${this.loadedCount}/${notes.length} 个自定义采样`);
+        } else {
+            showToast('未识别到有效采样文件');
+        }
     },
     
-    // 重置为默认采样
-    reset() {
+    /**
+     * 重置为默认采样
+     */
+    async reset() {
+        // 清理 blob URLs
+        this.buffers.forEach((url, index) => {
+            if (url && url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        });
+        
         this.useCustom = false;
         this.buffers.fill(null);
         this.loadedCount = 0;
         this.clearStatus();
+        
+        // 通知播放管理器使用默认采样
+        playbackManager.setUseCustomSampler(false);
+        
         showToast('已恢复默认采样');
     },
     
     // 获取音符的音频URL
-getNoteUrl(noteName) {
-    const index = notes.indexOf(noteName.toUpperCase());
-    if (index === -1) {
-        console.warn('未找到音符:', noteName);
-        return DEFAULT_AUDIOS[noteName] || `audio/piano/${noteName.toLowerCase().replace('#', 's')}.mp3`;
-    }
-    
-    // 如果自定义采样存在且有效，使用自定义采样
-    if (this.useCustom && this.buffers[index] && !this.buffers[index].startsWith('data:')) {
-        return this.buffers[index];
-    }
-    
-    // 否则使用默认采样
-    const defaultUrl = DEFAULT_AUDIOS[noteName] || `audio/piano/${noteName.toLowerCase().replace('#', 's')}.mp3`;
-    console.log('音频文件路径:', noteName, '->', defaultUrl);
-    return defaultUrl;
-},
+    getNoteUrl(noteName) {
+        const index = notes.indexOf(noteName.toUpperCase());
+        if (index === -1) {
+            console.warn('未找到音符:', noteName);
+            return DEFAULT_AUDIOS[noteName] || `audio/piano/${noteName.toLowerCase().replace('#', 's')}.mp3`;
+        }
+        
+        // 如果自定义采样存在且有效，使用自定义采样
+        if (this.useCustom && this.buffers[index] && !this.buffers[index].startsWith('data:')) {
+            return this.buffers[index];
+        }
+        
+        // 否则使用默认采样
+        const defaultUrl = DEFAULT_AUDIOS[noteName] || `audio/piano/${noteName.toLowerCase().replace('#', 's')}.mp3`;
+        return defaultUrl;
+    },
     
     // 检查采样是否就绪
     isReady() {
