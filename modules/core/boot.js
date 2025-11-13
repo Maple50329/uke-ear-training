@@ -109,24 +109,6 @@ window.playQuizSequence = async function(isReplay = false) {
     return playQuizSequenceFunc(isReplay);
 };
 
-// 初始化右侧面板
-const originalBoot = window.boot;
-window.boot = async function() {
-    if (originalBoot) {
-      await originalBoot();
-    }
-    const initRightPanelTool = AppGlobal.getTool('initRightPanel');
-    if (initRightPanelTool)
-      initRightPanelTool();
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initPitchVisualizer);
-    } else {
-      setTimeout(initPitchVisualizer, 100);
-    }
-    console.log('✅ 启动脚本完成');
-  };
-
 // 监听调性选择变化
 function initKeyChangeListener() {
     const keySelect = document.getElementById('keySelect');
@@ -240,7 +222,6 @@ export async function bootStandardMode() {
         // 文件选择处理
         fileIn.addEventListener('change', async (e) => {
             if (e.target.files.length > 0) {
-                console.log('📁 选择文件:', e.target.files.length, '个');
                 await SAMPLE.load(e.target.files);
             }
         });
@@ -279,9 +260,7 @@ export async function bootStandardMode() {
     
     window.dispatchEvent(new CustomEvent('initial-state'));
     
-    function reinitializeAnswerAreaForDifficulty() {
-        console.log('🔄 难度切换，重新初始化答题区...');
-        
+    function reinitializeAnswerAreaForDifficulty() {        
         // 1. 重新初始化答题按钮
         const initAnswerAreaFunc = AppGlobal.getTool('initAnswerArea');
         initAnswerAreaFunc?.();
@@ -347,7 +326,6 @@ export async function bootStandardMode() {
     // 等待DOM完全就绪后再初始化
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('📄 DOM完全加载完成，开始初始化...');
             setTimeout(() => {
                 initializeScalingAndAnswerArea();
             }, 100);
@@ -473,7 +451,40 @@ AppState.dom.mainBtn.onclick = async () => {
     } catch (error) {
         console.error('❌ 移动端面板初始化失败:', error);
     }
+     
+/* -------------- 右侧面板初始化 -------------- */
+// 初始化右侧面板统计
+const initRightPanelTool = AppGlobal.getTool('initRightPanel');
+if (initRightPanelTool) {
+    initRightPanelTool();
+} else {
+    console.warn('⚠️ 右侧面板初始化工具未找到');
+}
 
+// 确保音高可视化器已初始化
+const initPitchVisualizerTool = AppGlobal.getTool('initPitchVisualizer');
+if (initPitchVisualizerTool) {
+    initPitchVisualizerTool();
+}
+
+// 如果是移动端，初始化移动端面板并同步数据
+if (window.innerWidth <= 768) {
+    try {
+        const { initMobilePanels } = await import('../ui/mobile-panels.js');
+        const mobilePanelManager = await initMobilePanels();
+        
+        // 延迟同步统计数据，确保 DOM 完全渲染
+        setTimeout(() => {
+            if (mobilePanelManager) {
+                mobilePanelManager.copyDesktopStatsToMobile();
+                console.log('✅ 移动端面板统计初始化完成');
+            }
+        }, 300);
+    } catch (error) {
+        console.error('❌ 移动端面板初始化失败:', error);
+    }
+}
+    
     /* -------------- 其他 UI 初始化 -------------- */
     const initUkuleleKeySelectorFunc = AppGlobal.getTool('initUkuleleKeySelector');
     initUkuleleKeySelectorFunc?.();
@@ -502,12 +513,10 @@ AppState.dom.mainBtn.onclick = async () => {
     initCustomSampling();
     
     /* -------------- 历史记录系统初始化 -------------- */
-console.log('🔄 初始化历史记录系统...');
 
 const initHistorySystemTool = AppGlobal.getTool('initHistorySystem');
 if (initHistorySystemTool) {
     initHistorySystemTool();
-    console.log('✅ 历史记录系统初始化完成');
     
     // 初始同步一次显示
     setTimeout(() => {
@@ -529,7 +538,6 @@ export async function boot() {
     console.log('🎵 应用启动中...');
     
     // 第一步：初始化工具箱（懒加载方式）
-    console.log('🛠️ 初始化工具箱...');
     const toolboxReady = await ToolManager.initialize();
     if (!toolboxReady) {
         console.warn('⚠️ 工具箱初始化有问题，但继续启动流程...');

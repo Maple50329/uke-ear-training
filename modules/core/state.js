@@ -28,7 +28,9 @@ export const AppState = {
     contextResumed: false,
     resumeAttempted: false,
     nodesReconnected: false,
-    isPlaying: false
+    isPlaying: false,
+    autoNextDelay: localStorage.getItem('autoNextDelay') || 3,
+    autoNextEnabled: localStorage.getItem('autoNextEnabled') === 'true' || false
   },
   
   // 答题系统状态

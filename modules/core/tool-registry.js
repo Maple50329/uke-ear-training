@@ -80,13 +80,9 @@ const LAZY_TOOLS = {
   }),
 };
 
-export function registerAllTools() {
-  console.log('🛠️ 注册核心工具（纯懒加载模式）...');
-  
+export function registerAllTools() {  
   // 只注册懒加载代理
   registerLazyProxies();
-  
-  console.log(`✅ 已注册 ${Object.keys(LAZY_TOOLS).length} 个工具的懒加载代理`);
   return { successCount: Object.keys(LAZY_TOOLS).length, failedTools: [] };
 }
 
