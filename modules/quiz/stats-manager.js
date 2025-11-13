@@ -174,12 +174,15 @@ class StatsManager {
     this.saveStats();
     this.updateDisplay();
     this.updateBestAccuracy();
-    
+    // 答题后触发移动端同步
+if (window.mobilePanelManager) {
+    window.mobilePanelManager.syncAllData();
+}
     return this.getStats();
 }
 
 /**
- * 🆕 新增：更新最佳准确率
+ * 更新最佳准确率
  */
 updateBestAccuracy() {
     try {
