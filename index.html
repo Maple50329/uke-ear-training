@@ -361,13 +361,13 @@ select {
                     <!-- 调性选择器放在音名正下方 -->
                     <div class="uke-key-selector">
                         <select id="ukeKeySelect" class="uke-key-dropdown">
-                            <option value="C">C调</option>
-                            <option value="D">D调</option>
-                            <option value="E">E调</option>
-                            <option value="F">F调</option>
-                            <option value="G">G调</option>
-                            <option value="A">A调</option>
-                            <option value="B">B调</option>
+                            <option value="C">C大调</option>
+                            <option value="D">D大调</option>
+                            <option value="E">E大调</option>
+                            <option value="F">F大调</option>
+                            <option value="G">G大调</option>
+                            <option value="A">A大调</option>
+                            <option value="B">B大调</option>
                         </select>
                     </div>
                 </div>
@@ -407,7 +407,7 @@ select {
 <div id="startScreen" class="start-screen active">
     <div class="start-container">
         <div class="app-brand">
-            <h1>🎵 单音听辨训练器</h1>
+            <h1>🎵 相对音感训练器</h1>
             <p>提升音乐感知能力，从精准听辨开始</p>
         </div>
 
@@ -499,7 +499,7 @@ select {
             🏠
         </button>
         <div class="app-title" style="cursor: pointer;" title="点击返回开始屏幕">
-            单音听辨训练器 <small>提升音乐感知能力，从精准听辨开始</small>
+            相对音感训练器 <small>提升音乐感知能力，从精准听辨开始</small>
         </div>
     </div>
     <div class="header-controls">
@@ -534,21 +534,21 @@ select {
         <div class="control-group">
         <!-- 直接保留这个div和里面的按钮 -->
         <div class="mode-buttons">
-            <button class="mode-btn active" data-mode="c">固定C</button>
-            <button class="mode-btn" data-mode="a">固定A</button>
+            <button class="mode-btn active" data-mode="c">Do</button>
+            <button class="mode-btn" data-mode="a">La</button>
         </div>
     </div>
         
         <div class="control-group">
             <label class="control-label">调性</label>
             <select id="keySelect">
-                <option value="C">C调</option>
-                <option value="D">D调</option>
-                <option value="E">E调</option>
-                <option value="F">F调</option>
-                <option value="G">G调</option>
-                <option value="A">A调</option>
-                <option value="B">B调</option>
+                <option value="C">C大调</option>
+                <option value="D">D大调</option>
+                <option value="E">E大调</option>
+                <option value="F">F大调</option>
+                <option value="G">G大调</option>
+                <option value="A">A大调</option>
+                <option value="B">B大调</option>
             </select>
         </div>
 
@@ -562,7 +562,7 @@ select {
     </div>
 
     <div class="panel-section">
-        <h3 class="panel-title">播放选项</h3>
+        <h3 class="panel-title">其他选项</h3>
         <div class="checkbox-option">
             <input type="checkbox" id="autoNextCheckbox">
             <label for="autoNextCheckbox">自动下一音</label>
@@ -719,8 +719,14 @@ select {
   <div class="mobile-bottom-container">
     <!-- 操作栏 -->
     <div class="mobile-bottom-controls">
-      <button class="mobile-control-btn setting-btn">设置</button>
-      <button class="mobile-control-btn history-btn">历史记录</button>
+        <button class="mobile-control-btn setting-btn">
+            <div class="mobile-icon">⚙️</div>
+            <div class="mobile-label">播放设置</div>
+        </button>
+        <button class="mobile-control-btn history-btn">
+            <div class="mobile-icon">📊</div>
+            <div class="mobile-label">统计与历史</div>
+          </button>
     </div>
     
     <!-- 属性信息栏 -->
@@ -750,7 +756,7 @@ select {
     <!-- 左侧设置面板 -->
     <div id="mobileLeftPanel" class="mobile-side-panel left-panel">
       <div class="panel-header">
-        <div class="panel-title">设置</div>
+        <div class="panel-title">播放设置</div>
         <button class="panel-close">✕</button>
       </div>
       <div class="panel-content">
@@ -759,72 +765,157 @@ select {
           <p>设置选项加载中...</p>
         </div>
       </div>
-      <div class="mobile-panel-footer">
-        <button class="panel-close">关闭</button>
-    </div>
     </div>
   
 <!-- 右侧历史面板 -->
 <div id="mobileRightPanel" class="mobile-side-panel right-panel">
-  <div class="panel-header">
-    <div class="panel-title">统计与历史</div>
-    <button class="panel-close">✕</button>
-  </div>
-  <div class="panel-content">
-    <!-- 统计信息区域 -->
-    <div class="mobile-stats-section">
-      <h4 style="margin: 0 0 16px 0; color: var(--text);">练习统计</h4>
-      <div class="mobile-stat-list">
-        <div class="mobile-stat-item">
-          <span class="mobile-stat-label">今日练习:</span>
-          <span class="mobile-stat-value" id="mobileTotalPlays">0题</span>
-        </div>
-        <div class="mobile-stat-item">
-          <span class="mobile-stat-label">首击正确:</span>
-          <span class="mobile-stat-value" id="mobileCorrectCount">0题</span>
-        </div>
-        <div class="mobile-stat-item">
-          <span class="mobile-stat-label">正确率:</span>
-          <span class="mobile-stat-value" id="mobileAccuracyRate">0%</span>
-        </div>
-        <div class="mobile-stat-item">
-          <span class="mobile-stat-label">当前连击:</span>
-          <span class="mobile-stat-value" id="mobileCurrentStreak">0连胜</span>
-        </div>
-        <div class="mobile-stat-item">
-          <span class="mobile-stat-label">最高连击:</span>
-          <span class="mobile-stat-value" id="mobileMaxStreak">0连胜</span>
-        </div>
-      </div>
-      
-      <!-- 查看详细信息按钮 -->
-      <button id="mobileViewDetailsBtn" class="mobile-view-details-btn">
-        📈 查看详细信息
-      </button>
-    </div>
-
-    <!-- 历史记录区域 - 完全复用桌面端结构 -->
-    <div class="mobile-history-section" style="margin-top: 24px; border-top: 1px solid var(--btn-sec); padding-top: 20px;">
-    <h4 style="margin: 0 0 16px 0; color: var(--text);">最近记录</h4>
-    <div class="history-list" id="mobileHistoryList">
-        <div class="history-empty">暂无练习记录，答对题目后将会出现在这里</div>
+    <div class="panel-header">
+      <div class="panel-title">统计与历史</div>
+      <button class="panel-close">✕</button>
     </div>
     
-    <!-- 历史记录操作栏 -->
-    <div class="history-actions">
-        <div class="history-stats">
-            <span id="mobileHistoryCount">0</span> 条记录
-        </div>
-        <button id="mobileClearHistoryBtn" class="clear-history-btn" disabled>
-            🗑️ 清空
-        </button>
+    <!-- 新增：标签页导航 -->
+    <div class="mobile-tab-nav">
+      <button class="mobile-tab-btn active" data-tab="statsTab">练习统计</button>
+      <button class="mobile-tab-btn" data-tab="historyTab">历史记录</button>
     </div>
-</div>
+    
+    <div class="panel-content">
+      <!-- 统计标签页 - 现有统计区域包装 -->
+      <div class="mobile-tab-content active" id="statsTab">
+        <div class="mobile-stats-section">
+          <div class="mobile-stat-list">
+            <div class="mobile-stat-item">
+                <span class="mobile-stat-label">总练习:</span>
+                <span class="mobile-stat-value" id="mobileTotalExercises">0题</span>
+              </div>
+              <div class="mobile-stat-item">
+                <span class="mobile-stat-label">总正确率:</span>
+                <span class="mobile-stat-value" id="mobileTotalAccuracyRate">0%</span>
+              </div>
+            <div class="mobile-stat-item">
+              <span class="mobile-stat-label">今日练习:</span>
+              <span class="mobile-stat-value" id="mobileTotalPlays">0题</span>
+            </div>
+            <div class="mobile-stat-item">
+              <span class="mobile-stat-label">首击正确:</span>
+              <span class="mobile-stat-value" id="mobileCorrectCount">0题</span>
+            </div>
+            <div class="mobile-stat-item">
+              <span class="mobile-stat-label">正确率:</span>
+              <span class="mobile-stat-value" id="mobileAccuracyRate">0%</span>
+            </div>
+            <div class="mobile-stat-item">
+              <span class="mobile-stat-label">当前连击:</span>
+              <span class="mobile-stat-value" id="mobileCurrentStreak">0连胜</span>
+            </div>
+            <div class="mobile-stat-item">
+              <span class="mobile-stat-label">最高连击:</span>
+              <span class="mobile-stat-value" id="mobileMaxStreak">0连胜</span>
+            </div>
+          </div>
+
+          <!-- 分类统计区域 -->
+          <div class="mobile-category-section">
+            <div class="mobile-category-header">
+                <h4>分类表现</h4>
+                <button class="mobile-expand-all">展开全部</button>
+            </div>
+            
+            <!-- 基准音表现 -->
+            <div class="mobile-category-group">
+                <div class="mobile-category-title">
+                    <span>🎵 基准音</span>
+                    <span class="mobile-caret">›</span>
+                </div>
+                <div class="mobile-category-content">
+                    <div class="mobile-progress-item">
+                        <div class="mobile-progress-label">C基准音</div>
+                        <div class="mobile-progress-bar">
+                            <div class="mobile-progress-fill c-base" style="width: 0%"></div>
+                        </div>
+                        <div class="mobile-progress-value">0%</div>
+                    </div>
+                    <div class="mobile-progress-item">
+                        <div class="mobile-progress-label">A基准音</div>
+                        <div class="mobile-progress-bar">
+                            <div class="mobile-progress-fill a-base" style="width: 0%"></div>
+                        </div>
+                        <div class="mobile-progress-value">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 音级类型 -->
+            <div class="mobile-category-group">
+                <div class="mobile-category-title">
+                    <span>🎼 音级类型</span>
+                    <span class="mobile-caret">›</span>
+                </div>
+                <div class="mobile-category-content">
+                    <div class="mobile-progress-item">
+                        <div class="mobile-progress-label">自然音级</div>
+                        <div class="mobile-progress-bar">
+                            <div class="mobile-progress-fill natural" style="width: 0%"></div>
+                        </div>
+                        <div class="mobile-progress-value">0%</div>
+                    </div>
+                    <div class="mobile-progress-item">
+                        <div class="mobile-progress-label">变化音级</div>
+                        <div class="mobile-progress-bar">
+                            <div class="mobile-progress-fill accidental" style="width: 0%"></div>
+                        </div>
+                        <div class="mobile-progress-value">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 调性表现 -->
+            <div class="mobile-category-group">
+                <div class="mobile-category-title">
+                    <span>🎹 调性表现</span>
+                    <span class="mobile-caret">›</span>
+                </div>
+                <div class="mobile-category-content" id="mobileKeyStats">
+                    <div class="mobile-no-data">暂无数据</div>
+                </div>
+            </div>
+
+            <!-- 难度表现 -->
+            <div class="mobile-category-group">
+                <div class="mobile-category-title">
+                    <span>⚡ 难度表现</span>
+                    <span class="mobile-caret">›</span>
+                </div>
+                <div class="mobile-category-content" id="mobileDifficultyStats">
+                    <div class="mobile-no-data">暂无数据</div>
+                </div>
+            </div>
+        </div>
+        </div>
+      </div>
+  
+      <!-- 历史标签页 - 现有历史区域包装 -->
+      <div class="mobile-tab-content" id="historyTab">
+        <div class="mobile-history-section" style="margin-top: 0; border-top: none; padding-top: 0;">
+          <h4 style="margin: 0 0 16px 0; color: var(--text);">最近记录</h4>
+          <div class="history-list" id="mobileHistoryList">
+            <div class="history-empty">暂无练习记录，答对题目后将会出现在这里</div>
+          </div>
+          
+          <!-- 历史记录操作栏 -->
+          <div class="history-actions">
+            <div class="history-stats">
+              <span id="mobileHistoryCount">0</span> 条记录
+            </div>
+            <button id="mobileClearHistoryBtn" class="clear-history-btn" disabled>
+              🗑️ 清空
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="mobile-panel-footer">
-    <button class="panel-close">关闭</button>
-  </div>
-</div>
     
     <!-- 遮罩层 -->
     <div id="mobilePanelOverlay" class="mobile-panel-overlay"></div>
