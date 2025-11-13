@@ -1,331 +1,456 @@
 import { updateRange } from './range-manager.js';
+import { AppState } from '../core/state.js';
 
+/**
+ * 性能与体验优化记录
+ * 1. 所有按钮事件统一使用事件委托 → 只做一次绑定，后续不再重复 addEventListener
+ * 2. 打开面板时仅第一次渲染 / 初始化；再次打开仅做显示（标志位控制）
+ * 3. 遮罩关闭时阻止 touch 穿透：preventDefault + 延迟关闭 + 临时禁用答题区点击
+ * 4. DOM 引用全部缓存，避免重复 querySelector
+ */
 export class MobileContentLoader {
-    // 填充左侧设置面板
-    static loadLeftPanelContent() {
-        const leftPanelContent = document.querySelector('#mobileLeftPanel .panel-content');
-        if (!leftPanelContent) return;
+  /*********************** 缓存区 ***********************/
+  static leftPanelEl      = null;   // #mobileLeftPanel
+  static overlayEl        = null;   // #mobilePanelOverlay
+  static ansAreaEl        = null;   // #ans（答题区）
+  static isLeftInited     = false;  // 左侧面板是否已初始化
+  static isRightInited    = false;  // 右侧面板是否已初始化（预留）
 
-        leftPanelContent.innerHTML = `
-            <div class="mobile-settings-section">
-                <!-- 音域设置 -->
-                <div class="mobile-settings-group">
-                    <div class="mobile-settings-title">音域设置</div>
-                    <div class="mobile-range-buttons" style="display: flex; gap: 8px;">
-                        <button class="mobile-range-btn active" data-range="low">小字组</button>
-                        <button class="mobile-range-btn" data-range="mid">小字一组</button>
-                    </div>
-                </div>
+  /*********************** 对外接口 ***********************/
+  static loadLeftPanelContent() {
+    if (!this.isLeftInited) {
+      this.renderLeftPanel();          // 首次：渲染 DOM
+      this.bindDelegatedEvents();      // 首次：事件委托
+      this.syncInitialState();         // 首次：同步桌面端状态
+      this.initMobileAutoNextStepper();// 首次：步进器
+      this.isLeftInited = true;
+    }
+  }
 
-                <!-- 基准音设置 -->
-                <div class="mobile-settings-group">
-                    <div class="mobile-settings-title">基准音设置</div>
-                    <div class="mobile-mode-buttons" style="display: flex; gap: 8px;">
-                        <button class="mobile-mode-btn active" data-mode="c">固定C</button>
-                        <button class="mobile-mode-btn" data-mode="a">固定A</button>
-                    </div>
-                </div>
+  /*********************** 首次渲染 ***********************/
+  static renderLeftPanel() {
+    const cnt = document.querySelector('#mobileLeftPanel .panel-content');
+    if (!cnt) return;
+    cnt.innerHTML = `
+      <div class="mobile-settings-section">
+        <!-- 音域 -->
+        <div class="mobile-settings-group">
+          <div class="mobile-settings-title">音域设置</div>
+          <div class="mobile-range-buttons" data-role="range-group">
+            <button class="mobile-range-btn active" data-range="low">小字组</button>
+            <button class="mobile-range-btn" data-range="mid">小字一组</button>
+          </div>
+        </div>
 
-                <!-- 调性选择 -->
-                <div class="mobile-settings-group">
-                    <div class="mobile-settings-title">调性选择</div>
-                    <select id="mobileKeySelect">
-                        <option value="C">C大调</option>
-                        <option value="D">D大调</option>
-                        <option value="E">E大调</option>
-                        <option value="F">F大调</option>
-                        <option value="G">G大调</option>
-                        <option value="A">A大调</option>
-                        <option value="B">B大调</option>
-                    </select>
-                </div>
+        <!-- 基准音 -->
+        <div class="mobile-settings-group">
+          <div class="mobile-settings-title">基准音设置</div>
+          <div class="mobile-mode-buttons" data-role="mode-group">
+            <button class="mobile-mode-btn active" data-mode="c">固定C</button>
+            <button class="mobile-mode-btn" data-mode="a">固定A</button>
+          </div>
+        </div>
 
-                <!-- 难度选择 -->
-                <div class="mobile-settings-group">
-                    <div class="mobile-settings-title">难度选择</div>
-                    <select id="mobileDifficultySelect">
-                        <option value="basic">仅基本音级</option>
-                        <option value="extended">含变化音级</option>
-                    </select>
-                </div>
+        <!-- 调性 -->
+        <div class="mobile-settings-group">
+          <div class="mobile-settings-title">调性选择</div>
+          <select id="mobileKeySelect">
+            <option value="C">C大调</option><option value="D">D大调</option>
+            <option value="E">E大调</option><option value="F">F大调</option>
+            <option value="G">G大调</option><option value="A">A大调</option>
+            <option value="B">B大调</option>
+          </select>
+        </div>
 
-                <!-- 播放选项 -->
-                <div class="mobile-settings-group">
-                <div class="mobile-settings-title">播放选项</div>
-                
-                <!-- 自动下一音选项 - 使用步进按钮 -->
-                <div class="mobile-settings-option">
-                    <div class="checkbox-with-buttons">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="mobileAutoNextCheckbox">
-                            <span class="checkbox-text">自动下一音</span>
-                        </label>
-                        <div class="time-controls">
-                            <button class="time-btn minus" type="button" disabled="true">-</button>
-                            <span class="time-value" id="mobileAutoNextTimeValue">3秒</span>
-                            <button class="time-btn plus" type="button" disabled="true">+</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 先播放音阶选项 -->
-                <div class="mobile-settings-option">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="mobileScalePlaybackCheckbox" checked>
-                        <span class="checkbox-text">先播放音阶</span>
-                    </label>
-                </div>
+        <!-- 难度 -->
+        <div class="mobile-settings-group">
+          <div class="mobile-settings-title">难度选择</div>
+          <select id="mobileDifficultySelect">
+            <option value="basic">仅基本音级</option>
+            <option value="extended">含变化音级</option>
+          </select>
+        </div>
+
+        <!-- 其他 -->
+        <div class="mobile-settings-group">
+          <div class="mobile-settings-title">其他选项</div>
+          <div class="mobile-settings-option">
+            <div class="checkbox-with-buttons">
+              <label class="checkbox-label">
+                <input type="checkbox" id="mobileAutoNextCheckbox">
+                <span class="checkbox-text">自动下一音</span>
+              </label>
+              <div class="time-controls">
+                <button class="time-btn minus" type="button" disabled>-</button>
+                <span class="time-value" id="mobileAutoNextTimeValue">3秒</span>
+                <button class="time-btn plus" type="button" disabled>+</button>
+              </div>
             </div>
-            </div>
-        `;
+          </div>
+          <div class="mobile-settings-option">
+            <label class="checkbox-label">
+              <input type="checkbox" id="mobileScalePlaybackCheckbox" checked>
+              <span class="checkbox-text">先播放音阶</span>
+            </label>
+          </div>
+        </div>
+      </div>`;
+  }
 
-        // 绑定事件
-        this.bindLeftPanelEvents();
+  /*********************** 事件委托（仅执行一次） ***********************/
+  static bindDelegatedEvents() {
+    const left = document.getElementById('mobileLeftPanel');
+    if (!left) return;
+
+    /* -------- 按钮类 -------- */
+    left.addEventListener('click', e => {
+      const t = e.target;
+      // 音域
+      if (t.classList.contains('mobile-range-btn')) {
+        e.stopPropagation();
+        this.activateBtn(t, '[data-role="range-group"] .mobile-range-btn');
+        updateRange(t.dataset.range);
+        document.querySelector(`.range-btn[data-range="${t.dataset.range}"]`)?.click();
+      }
+      // 基准音
+      else if (t.classList.contains('mobile-mode-btn')) {
+        e.stopPropagation();
+        this.activateBtn(t, '[data-role="mode-group"] .mobile-mode-btn');
+        document.querySelector(`.mode-btn[data-mode="${t.dataset.mode}"]`)?.click();
+      }
+    });
+
+    /* -------- select 同步 -------- */
+    left.addEventListener('change', e => {
+      if (e.target.id === 'mobileKeySelect') {
+        document.getElementById('keySelect').value = e.target.value;
+        document.getElementById('keySelect').dispatchEvent(new Event('change'));
+      } else if (e.target.id === 'mobileDifficultySelect') {
+        document.getElementById('difficultySelect').value = e.target.value;
+        document.getElementById('difficultySelect').dispatchEvent(new Event('change'));
+      }
+    });
+
+    /* -------- 复选框双向同步 -------- */
+    left.addEventListener('change', e => {
+      const idMap = {
+        mobileAutoNextCheckbox: 'autoNextCheckbox',
+        mobileScalePlaybackCheckbox: 'enableScalePlayback'
+      };
+      const desktopId = idMap[e.target.id];
+      if (desktopId) {
+        const desktopEl = document.getElementById(desktopId);
+        if (desktopEl) desktopEl.checked = e.target.checked;
+      }
+    });
+  }
+
+  /*********************** 初始化状态同步 ***********************/
+  static syncInitialState() {
+    // 音域
+    const dRange = document.querySelector('.range-btn.active')?.dataset.range;
+    if (dRange) {
+      const mb = document.querySelector(`.mobile-range-btn[data-range="${dRange}"]`);
+      if (mb) this.activateBtn(mb, '[data-role="range-group"] .mobile-range-btn');
     }
-
-    // 绑定左侧面板事件
-    static bindLeftPanelEvents() {
-        // 音域按钮
-        document.querySelectorAll('.mobile-range-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const range = e.target.dataset.range;
-                document.querySelectorAll('.mobile-range-btn').forEach(b => {
-                    b.style.background = b === e.target ? 'var(--accent-color)' : 'var(--btn-sec)';
-                    b.style.color = b === e.target ? 'white' : 'var(--text)';
-                });
-                updateRange(range);
-            });
-        });
-
-        // 基准音按钮
-        document.querySelectorAll('.mobile-mode-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const mode = e.target.dataset.mode;
-                document.querySelectorAll('.mobile-mode-btn').forEach(b => {
-                    b.style.background = b === e.target ? 'var(--accent-color)' : 'var(--btn-sec)';
-                    b.style.color = b === e.target ? 'white' : 'var(--text)';
-                });
-                // 同步到桌面端模式按钮
-                const desktopBtn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
-                if (desktopBtn) {
-                    desktopBtn.click();
-                }
-            });
-        });
-
-        // 同步选择框状态
-        const keySelect = document.getElementById('keySelect');
-        const mobileKeySelect = document.getElementById('mobileKeySelect');
-        if (keySelect && mobileKeySelect) {
-            mobileKeySelect.value = keySelect.value;
-            mobileKeySelect.addEventListener('change', () => {
-                keySelect.value = mobileKeySelect.value;
-                keySelect.dispatchEvent(new Event('change'));
-            });
-        }
-
-        const difficultySelect = document.getElementById('difficultySelect');
-        const mobileDifficultySelect = document.getElementById('mobileDifficultySelect');
-        if (difficultySelect && mobileDifficultySelect) {
-            mobileDifficultySelect.value = difficultySelect.value;
-            mobileDifficultySelect.addEventListener('change', () => {
-                difficultySelect.value = mobileDifficultySelect.value;
-                difficultySelect.dispatchEvent(new Event('change'));
-            });
-        }
-
-        // 同步复选框状态
-        const autoNextCheckbox = document.getElementById('autoNextCheckbox');
-        const mobileAutoNextCheckbox = document.getElementById('mobileAutoNextCheckbox');
-        if (autoNextCheckbox && mobileAutoNextCheckbox) {
-            mobileAutoNextCheckbox.checked = autoNextCheckbox.checked;
-            mobileAutoNextCheckbox.addEventListener('change', () => {
-                autoNextCheckbox.checked = mobileAutoNextCheckbox.checked;
-            });
-        }
-
-        const scalePlaybackCheckbox = document.getElementById('enableScalePlayback');
-        const mobileScalePlaybackCheckbox = document.getElementById('mobileScalePlaybackCheckbox');
-        if (scalePlaybackCheckbox && mobileScalePlaybackCheckbox) {
-            mobileScalePlaybackCheckbox.checked = scalePlaybackCheckbox.checked;
-            mobileScalePlaybackCheckbox.addEventListener('change', () => {
-                scalePlaybackCheckbox.checked = mobileScalePlaybackCheckbox.checked;
-            });
-        }
+    // 基准音
+    const dMode = document.querySelector('.mode-btn.active')?.dataset.mode;
+    if (dMode) {
+      const mb = document.querySelector(`.mobile-mode-btn[data-mode="${dMode}"]`);
+      if (mb) this.activateBtn(mb, '[data-role="mode-group"] .mobile-mode-btn');
     }
+    // 下拉框
+    document.getElementById('mobileKeySelect').value = document.getElementById('keySelect').value;
+    document.getElementById('mobileDifficultySelect').value = document.getElementById('difficultySelect').value;
+    // 复选框
+    document.getElementById('mobileAutoNextCheckbox').checked = document.getElementById('autoNextCheckbox')?.checked ?? false;
+    document.getElementById('mobileScalePlaybackCheckbox').checked = document.getElementById('enableScalePlayback')?.checked ?? true;
+    // 步进器初始同步
+  const desktopSlider = document.getElementById('infoDisplayTime');
+  const timeValue = document.getElementById('mobileAutoNextTimeValue');
+  if (desktopSlider && timeValue) {
+    const delay = parseInt(desktopSlider.value) || 3;
+    timeValue.textContent = `${delay}秒`;
+    AppState.audio.autoNextDelay = delay;
+  }
+  }
 
-    // 更新右侧面板统计
-    static updateRightPanelStats(stats) {
-        if (!stats) return;
+  /*********************** 工具方法 ***********************/
+  static activateBtn(target, selector) {
+    target.closest('.mobile-settings-section').querySelectorAll(selector).forEach(b => {
+      b.style.background = 'var(--btn-sec)';
+      b.style.color = 'var(--text)';
+    });
+    target.style.background = 'var(--accent-color)';
+    target.style.color = 'white';
+  }
 
-        // 更新统计数字
-        const elements = {
-            'mobileTotalPlays': `${stats.completed || 0}题`,
-            'mobileCorrectCount': `${stats.mastered || 0}题`,
-            'mobileAccuracyRate': `${stats.masteryRate || 0}%`,
-            'mobileCurrentStreak': `${stats.currentStreak || 0}连胜`,
-            'mobileMaxStreak': `${stats.maxStreak || 0}连胜`
-        };
-
-        Object.entries(elements).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) element.textContent = value;
-        });
-    }
-
-    // 更新历史记录显示
-    static updateHistoryDisplay(history) {
-        const historyList = document.getElementById('mobileHistoryList');
-        if (!historyList) return;
-
-        if (!history || history.length === 0) {
-            historyList.innerHTML = '<div class="mobile-history-empty">暂无播放记录</div>';
-            return;
-        }
-
-        let html = '';
-        history.slice(0, 10).forEach(entry => {
-            const time = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
-            html += `
-                <div class="mobile-history-item ${entry.correct ? 'correct' : 'incorrect'}">
-                    <div class="mobile-history-note">${entry.note}</div>
-                    <div class="mobile-history-info">
-                        <span class="mobile-history-time">${time}</span>
-                        <span class="mobile-history-status ${entry.correct ? 'correct' : 'incorrect'}">
-                            ${entry.correct ? '✓' : '✗'}
-                        </span>
-                    </div>
-                </div>
-            `;
-        });
-        
-        historyList.innerHTML = html;
-    }
-
+static handleTimeStepper(btn) {
+  const minus = btn.classList.contains('minus');
+  const plus = btn.classList.contains('plus');
+  if (!minus && !plus) return;
+  
+  // 从桌面端滑块获取当前值，确保数据源一致
+  const desktopSlider = document.getElementById('infoDisplayTime');
+  let currentValue = 3; // 默认值
+  
+  if (desktopSlider && desktopSlider.value) {
+    currentValue = parseInt(desktopSlider.value);
+  } else {
+    // 如果没有滑块，从 AppState 获取
+    currentValue = parseInt(AppState.audio.autoNextDelay) || 3;
+  }
+  
+  let newValue = currentValue;
+  
+  // 单步增减，确保在 1-5 范围内
+  if (minus && currentValue > 1) {
+    newValue = currentValue - 1;
+  } else if (plus && currentValue < 5) {
+    newValue = currentValue + 1;
+  } else {
+    return; // 没有变化
+  }
+  
+  // 更新桌面端滑块（这是主要的数据源）
+  if (desktopSlider) {
+    desktopSlider.value = newValue;
+    desktopSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    desktopSlider.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  
+  // 同步更新 AppState
+  AppState.audio.autoNextDelay = newValue;
+  
+  // 更新移动端显示
+  document.getElementById('mobileAutoNextTimeValue').textContent = `${newValue}秒`;
 }
 
-function initMobileAutoNextSlider() {
-    console.log('🔄 初始化移动端自动下一音按钮...');
+  /*********************** 步进器初始化（只一次） ***********************/
+static initMobileAutoNextStepper() {
+  
+  const mobileCheckbox = document.getElementById('mobileAutoNextCheckbox');
+  const stepDown = document.querySelector('#mobileLeftPanel .time-btn.minus');
+  const stepUp = document.querySelector('#mobileLeftPanel .time-btn.plus');
+  const timeValue = document.getElementById('mobileAutoNextTimeValue');
+  
+  if (!mobileCheckbox || !stepDown || !stepUp || !timeValue) {
+    console.warn('⚠️ 移动端步进器元素未找到');
+    return;
+  }
+
+  // 克隆替换按钮，移除所有可能的事件监听器
+  const newStepDown = stepDown.cloneNode(true);
+  const newStepUp = stepUp.cloneNode(true);
+  stepDown.parentNode.replaceChild(newStepDown, stepDown);
+  stepUp.parentNode.replaceChild(newStepUp, stepUp);
+
+  // 重新获取元素引用
+  const freshStepDown = document.querySelector('#mobileLeftPanel .time-btn.minus');
+  const freshStepUp = document.querySelector('#mobileLeftPanel .time-btn.plus');
+
+  // 添加节流控制
+  let isProcessing = false;
+
+  /* ---------- 更新显示函数 ---------- */
+  const updateDisplay = () => {
+    // 从桌面端滑块获取当前值
+    const desktopSlider = document.getElementById('infoDisplayTime');
+    let delay = 3;
     
-    const mobileCheckbox = document.getElementById('mobileAutoNextCheckbox');
-    const mobileTimeValue = document.getElementById('mobileAutoNextTimeValue');
-    const minusBtn = document.querySelector('.time-btn.minus');
-    const plusBtn = document.querySelector('.time-btn.plus');
-    
-    if (!mobileCheckbox || !mobileTimeValue || !minusBtn || !plusBtn) {
-        console.log('⏳ 移动端按钮元素尚未加载，等待重试...');
-        return false;
+    if (desktopSlider && desktopSlider.value) {
+      delay = parseInt(desktopSlider.value);
+    } else {
+      delay = parseInt(AppState.audio.autoNextDelay) || 3;
     }
     
-    console.log('✅ 找到移动端按钮元素');
+    // 确保在有效范围内
+    delay = Math.max(1, Math.min(5, delay));
     
-    let currentTime = 3; // 默认3秒
+    // 更新显示
+    timeValue.textContent = `${delay}秒`;
     
-    // 更新时间显示和按钮状态
-    function updateTimeDisplay() {
-        mobileTimeValue.textContent = currentTime + '秒';
-        
-        // 更新按钮禁用状态
-        minusBtn.disabled = currentTime <= 1;
-        plusBtn.disabled = currentTime >= 5;
-        
-        // 同步到桌面端
-        const desktopSlider = document.getElementById('autoNextTimeSlider');
-        const desktopValue = document.getElementById('autoNextTimeValue');
-        
-        if (desktopSlider) {
-            desktopSlider.value = currentTime;
-            if (desktopValue) {
-                desktopValue.textContent = currentTime + '秒';
-            }
-        }
-        
-        console.log('⏱️ 更新时间:', currentTime + '秒');
+    // 关键修复：根据复选框状态和边界值来禁用按钮
+    const isAutoNextEnabled = mobileCheckbox.checked;
+    freshStepDown.disabled = !isAutoNextEnabled || delay <= 1;
+    freshStepUp.disabled = !isAutoNextEnabled || delay >= 5;
+    
+    // 更新按钮样式以反映禁用状态
+    if (!isAutoNextEnabled) {
+      freshStepDown.style.opacity = '0.5';
+      freshStepDown.style.cursor = 'not-allowed';
+      freshStepUp.style.opacity = '0.5';
+      freshStepUp.style.cursor = 'not-allowed';
+    } else {
+      freshStepDown.style.opacity = delay <= 1 ? '0.5' : '1';
+      freshStepDown.style.cursor = delay <= 1 ? 'not-allowed' : 'pointer';
+      freshStepUp.style.opacity = delay >= 5 ? '0.5' : '1';
+      freshStepUp.style.cursor = delay >= 5 ? 'not-allowed' : 'pointer';
     }
     
-    // 减少时间
-    minusBtn.addEventListener('click', function() {
-        if (this.disabled) return;
-        currentTime = Math.max(1, currentTime - 1);
-        updateTimeDisplay();
-    });
-    
-    // 增加时间
-    plusBtn.addEventListener('click', function() {
-        if (this.disabled) return;
-        currentTime = Math.min(5, currentTime + 1);
-        updateTimeDisplay();
-    });
-    
-    // 更新滑块禁用状态的函数
-    function updateControlsState() {
-        const isChecked = mobileCheckbox.checked;
-        minusBtn.disabled = !isChecked;
-        plusBtn.disabled = !isChecked;
-        mobileTimeValue.style.opacity = isChecked ? '1' : '0.6';
-        
-        console.log('🔄 更新控制状态:', isChecked ? '启用' : '禁用');
-    }
-    
-    // 同步复选框状态
+    // 更新复选框状态
     const desktopCheckbox = document.getElementById('autoNextCheckbox');
     if (desktopCheckbox) {
-        // 初始同步
-        mobileCheckbox.checked = desktopCheckbox.checked;
-        updateControlsState();
-        updateTimeDisplay();
-        
-        // 从桌面端同步时间
-        const desktopSlider = document.getElementById('autoNextTimeSlider');
-        if (desktopSlider) {
-            currentTime = parseInt(desktopSlider.value);
-            updateTimeDisplay();
-        }
-        
-        // 移动端复选框变化
-        mobileCheckbox.addEventListener('change', function() {
-            console.log('📱 移动端复选框变化:', this.checked);
-            updateControlsState();
-            desktopCheckbox.checked = this.checked;
-            desktopCheckbox.dispatchEvent(new Event('change'));
-        });
-        
-        // 桌面端复选框变化同步到移动端
-        desktopCheckbox.addEventListener('change', function() {
-            console.log('💻 桌面端复选框变化:', this.checked);
-            mobileCheckbox.checked = this.checked;
-            updateControlsState();
-        });
+      mobileCheckbox.checked = desktopCheckbox.checked;
     }
     
-    console.log('✅ 移动端按钮初始化完成');
-    return true;
+    // 同步到 AppState
+    AppState.audio.autoNextDelay = delay;
+    AppState.audio.autoNextEnabled = isAutoNextEnabled;
+  };
+
+  /* ---------- 为步进按钮绑定一次性事件（带节流） ---------- */
+  const handleStepClick = (isPlus) => (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    
+    // 节流控制：如果正在处理，直接返回
+    if (isProcessing) {
+      return;
+    }
+    
+    // 检查自动下一音是否启用
+    if (!mobileCheckbox.checked) {
+      return;
+    }
+    
+    isProcessing = true;
+    
+    // 直接处理步进逻辑，不调用 handleTimeStepper
+    const desktopSlider = document.getElementById('infoDisplayTime');
+    let currentValue = 3;
+    
+    if (desktopSlider && desktopSlider.value) {
+      currentValue = parseInt(desktopSlider.value);
+    }
+    
+    let newValue = currentValue;
+    
+    if (isPlus && currentValue < 5) {
+      newValue = currentValue + 1;
+    } else if (!isPlus && currentValue > 1) {
+      newValue = currentValue - 1;
+    } else {
+      isProcessing = false;
+      return; // 没有变化
+    }
+    
+    // 更新桌面端滑块
+    if (desktopSlider) {
+      desktopSlider.value = newValue;
+      desktopSlider.dispatchEvent(new Event('input', { bubbles: true }));
+      desktopSlider.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    // 更新状态和显示
+    AppState.audio.autoNextDelay = newValue;
+    timeValue.textContent = `${newValue}秒`;
+    
+    // 立即更新按钮状态
+    updateDisplay();
+    
+    // 100ms后解除节流，允许下一次点击
+    setTimeout(() => {
+      isProcessing = false;
+    }, 100);
+  };
+
+  freshStepDown.addEventListener('click', handleStepClick(false));
+  freshStepUp.addEventListener('click', handleStepClick(true));
+
+  /* ---------- 复选框事件 ---------- */
+  mobileCheckbox.addEventListener('change', (e) => {
+    e.stopPropagation();
+    
+    const isChecked = mobileCheckbox.checked;
+    
+    // 更新桌面端复选框
+    const desktopCheckbox = document.getElementById('autoNextCheckbox');
+    if (desktopCheckbox) {
+      desktopCheckbox.checked = isChecked;
+      desktopCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    AppState.audio.autoNextEnabled = isChecked;
+    
+    // 关键：立即更新步进按钮状态
+    updateDisplay();
+  });
+
+  /* ---------- 监听桌面端变化 ---------- */
+  // 监听滑块变化
+  const desktopSlider = document.getElementById('infoDisplayTime');
+  if (desktopSlider) {
+    desktopSlider.addEventListener('input', updateDisplay);
+    desktopSlider.addEventListener('change', updateDisplay);
+  }
+
+  // 监听复选框变化
+  const desktopCheckbox = document.getElementById('autoNextCheckbox');
+  if (desktopCheckbox) {
+    desktopCheckbox.addEventListener('change', (e) => {
+      mobileCheckbox.checked = desktopCheckbox.checked;
+      AppState.audio.autoNextEnabled = desktopCheckbox.checked;
+      updateDisplay();
+    });
+  }
+
+  // 初始显示
+  setTimeout(() => {
+    updateDisplay();
+  }, 100);
 }
 
-// 在移动端面板加载完成后调用
-export function onMobileContentLoaded() {
-    
-    // 尝试初始化，如果失败则重试
-    let retryCount = 0;
-    const maxRetries = 5;
-    
-    const tryInit = () => {
-        const success = initMobileAutoNextSlider();
-        if (!success && retryCount < maxRetries) {
-            retryCount++;
-            console.log(`🔄 第 ${retryCount} 次重试初始化滑块...`);
-            setTimeout(tryInit, 200);
-        }
+  /*********************** 遮罩关闭处理（防误触） ***********************/
+  static initOverlayCloseHandler() {
+    this.overlayEl = document.getElementById('mobilePanelOverlay');
+    this.ansAreaEl = document.getElementById('ans');
+    if (!this.overlayEl) return;
+
+    let touched = false;
+
+    this.overlayEl.addEventListener('touchstart', e => {
+      touched = true;
+      e.preventDefault(); // 阻止穿透
+    }, { passive: false });
+
+    this.overlayEl.addEventListener('click', () => {
+      if (touched) { touched = false; return; } // touchend 已处理
+      this.closeLeftPanelWithDelay();
+    });
+  }
+
+  static closeLeftPanelWithDelay() {
+    // 1. 临时禁用答题区点击
+    this.ansAreaEl?.classList.add('answer-area-blocked');
+    // 2. 延迟关闭面板，让 touch 事件先结束
+    setTimeout(() => {
+      this.leftPanelEl?.classList.remove('active');
+      this.overlayEl?.classList.remove('active');
+      document.body.style.overflow = '';
+      // 3. 恢复答题区点击
+      setTimeout(() => this.ansAreaEl?.classList.remove('answer-area-blocked'), 0);
+    }, 150);
+  }
+
+  /*********************** 右侧面板统计刷新（保持原接口） ***********************/
+  static updateRightPanelStats(stats) {
+    if (!stats) return;
+    const map = {
+      mobileTotalPlays: `${stats.completed || 0}题`,
+      mobileCorrectCount: `${stats.mastered || 0}题`,
+      mobileAccuracyRate: `${stats.masteryRate || 0}%`,
+      mobileCurrentStreak: `${stats.currentStreak || 0}连胜`,
+      mobileMaxStreak: `${stats.maxStreak || 0}连胜`
     };
-    
-    tryInit();
+    Object.entries(map).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    });
+  }
 }
 
-// 在移动端面板打开时调用
-export function onMobileLeftPanelOpen() {
-    initMobileAutoNextSlider();
-}
+/*********************** 自动初始化遮罩关闭逻辑 ***********************/
+document.addEventListener('DOMContentLoaded', () => {
+  MobileContentLoader.initOverlayCloseHandler();
+});

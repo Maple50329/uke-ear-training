@@ -6,32 +6,61 @@ import { updateIntervalDisplayInfo } from './feedback.js';
 import AppGlobal from '../core/app.js';
 // 初始化信息显示时长滑动条（函数名称保持不变）
 export function initInfoDisplaySlider() {
-    const timeSlider = document.getElementById('infoDisplayTime');
-    const timeDisplay = document.getElementById('timeDisplay');
-    const autoNextCheckbox = document.getElementById('autoNextCheckbox');
-    
-    if (!timeSlider || !timeDisplay) return;
-    
-    // 初始更新显示
-    updateTimeDisplay(timeSlider.value);
-    
-    // 滑块事件
-    timeSlider.addEventListener('input', function() {
-      updateTimeDisplay(this.value);
-    });
-    
-    // 复选框事件 - 控制滑块可用状态
-    if (autoNextCheckbox) {
-      autoNextCheckbox.addEventListener('change', function() {
-        timeSlider.disabled = !this.checked;
-        timeDisplay.style.opacity = this.checked ? '1' : '0.5';
-      });
-      
-      // 初始状态
-      timeSlider.disabled = !autoNextCheckbox.checked;
-      timeDisplay.style.opacity = autoNextCheckbox.checked ? '1' : '0.5';
-    }
+  const timeSlider = document.getElementById('infoDisplayTime');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const autoNextCheckbox = document.getElementById('autoNextCheckbox');
+  
+  if (!timeSlider || !timeDisplay || !autoNextCheckbox) return;
+
+  // --------------------------
+  // 1. 初始化：从全局状态读取值
+  // --------------------------
+  const initDelay = AppState.audio?.autoNextDelay || 3; // 默认3秒
+  timeSlider.value = initDelay;
+  updateTimeDisplay(initDelay); // 初始化桌面显示
+  timeSlider.disabled = !autoNextCheckbox.checked; // 初始禁用状态
+  timeDisplay.style.opacity = autoNextCheckbox.checked ? '1' : '0.5';
+  
+  // --------------------------
+  // 2. 滑块事件：同步值到全局+通知移动端
+  // --------------------------
+  timeSlider.addEventListener('input', function() {
+    const newDelay = parseInt(this.value, 10);
+    // 更新桌面显示
+    updateTimeDisplay(newDelay);
+    // 同步到全局状态（核心：移动端会从这里读取值）
+    AppState.audio.autoNextDelay = newDelay;
+    // 触发事件通知移动端更新UI
+    window.dispatchEvent(new CustomEvent('autoNextDelayChanged', {
+      detail: { delay: newDelay } // 传递最新值
+    }));
+    localStorage.setItem('autoNextDelay', newDelay); 
+  });
+
+  // --------------------------
+  // 3. 复选框事件：控制滑块启用/禁用状态
+  // --------------------------
+  autoNextCheckbox.addEventListener('change', function() {
+    const isEnabled = this.checked;
+    // 更新滑块状态
+    timeSlider.disabled = !isEnabled;
+    timeDisplay.style.opacity = isEnabled ? '1' : '0.5';
+    // 同步状态到全局（移动端复选框会读取此值）
+    AppState.audio.autoNextEnabled = isEnabled;
+    // 触发事件通知移动端更新按钮/滑块状态
+    window.dispatchEvent(new CustomEvent('autoNextStateChanged', {
+      detail: { enabled: isEnabled }
+    }));
+    localStorage.setItem('autoNextEnabled', isEnabled); 
+  });
+
+  // --------------------------
+  // 4. 辅助函数：更新桌面秒数显示
+  // --------------------------
+  function updateTimeDisplay(seconds) {
+    timeDisplay.textContent = `${seconds}秒`;
   }
+}
 
   export function updateTimeDisplay(seconds) {
     const timeDisplay = document.getElementById('timeDisplay');

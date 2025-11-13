@@ -67,6 +67,15 @@ function renderAnswerButtons(scaleNotes, difficulty) {
             btn.classList.add('natural');
         }
         
+        // 标记最后一行按钮（8键：7-8，13键：13）
+        const isLastRowBtn = 
+            (difficulty === 'basic' && index >= 6) ||    // 8键的最后2个按钮
+            (difficulty === 'extended' && index === 12); // 13键的最后1个按钮
+        
+        if (isLastRowBtn) {
+            btn.classList.add('last-row-btn');
+        }
+        
         // 使用工具箱的 checkAnswer 函数
         btn.onclick = () => {
             if (checkAnswerFunc) {
@@ -77,7 +86,7 @@ function renderAnswerButtons(scaleNotes, difficulty) {
         };
         
         ansArea.appendChild(btn);
-    });
+      });
     
     // 使用工具箱的缩放函数
     const adjustScaleFunc = AppGlobal.getTool('adjustAnswerAreaScale');

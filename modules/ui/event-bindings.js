@@ -7,11 +7,9 @@ import { statsModal } from './stats-modal.js';
 export function bindThemeEvents() {
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
-        // 移除旧的事件监听器
-        themeToggle.replaceWith(themeToggle.cloneNode(true));
-        const freshThemeToggle = document.getElementById('themeToggle');
-        
-        freshThemeToggle.addEventListener('click', toggleTheme);
+        // 直接重新绑定事件，不克隆节点
+        themeToggle.onclick = null; // 清除旧事件
+        themeToggle.addEventListener('click', toggleTheme);
     }
 }
 
@@ -20,16 +18,9 @@ export function bindCoreEvents() {
     // 基准音模式按钮点击事件
     const modeButtons = document.querySelectorAll('.mode-btn');
     modeButtons.forEach(btn => {
-        // 克隆按钮以移除旧事件
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-    });
-
-    // 重新绑定事件
-    const freshModeButtons = document.querySelectorAll('.mode-btn');
-    freshModeButtons.forEach(btn => {
+        btn.onclick = null; // 清除旧事件
         btn.addEventListener('click', () => {
-            freshModeButtons.forEach(b => b.classList.remove('active'));
+            modeButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const baseMode = btn.dataset.mode;
             updateBaseNoteSetting(baseMode);
@@ -39,6 +30,7 @@ export function bindCoreEvents() {
     // 调性选择变化事件
     const keySelect = document.getElementById('keySelect');
     if (keySelect) {
+        keySelect.onchange = null; // 清除旧事件
         keySelect.addEventListener('change', () => {
             const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
             updateBaseNoteSetting(baseMode);
@@ -73,17 +65,11 @@ function updateBaseNoteSetting(mode) {
 export function bindStatsModalEvents() {
     const viewDetailsBtn = document.getElementById('viewDetailsBtn');
     if (viewDetailsBtn) {
-        // 移除旧的事件监听器
-        viewDetailsBtn.replaceWith(viewDetailsBtn.cloneNode(true));
-        const freshBtn = document.getElementById('viewDetailsBtn');
-        
-        freshBtn.addEventListener('click', function() {
-            
-            // 调用原始统计模态框显示逻辑
+        viewDetailsBtn.onclick = null; // 清除旧事件
+        viewDetailsBtn.addEventListener('click', function() {
             if (statsModal && typeof statsModal.show === 'function') {
                 statsModal.show();
             } else {
-                // 备用方案：直接显示模态框
                 const modal = document.querySelector('.stats-modal');
                 if (modal) {
                     modal.classList.add('show');
