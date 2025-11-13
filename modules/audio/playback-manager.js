@@ -30,7 +30,6 @@ export class PlaybackManager {
      */
     setUseCustomSampler(useCustom) {
         this.useCustomSampler = useCustom && customSampler.getLoadedCount() > 0;
-        console.log(`🎵 播放模式: ${this.useCustomSampler ? '自定义采样' : '默认采样'}`);
     }
 
     /**
@@ -54,7 +53,6 @@ export class PlaybackManager {
         if (this.useCustomSampler && customSampler.hasNote(noteName)) {
             const success = await customSampler.play(noteName, duration);
             if (success) {
-                console.log(`🎵 使用自定义采样播放: ${noteName}`);
                 return;
             }
         }

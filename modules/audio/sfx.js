@@ -41,8 +41,6 @@ function initSFXSampler() {
 // 加载音效（简化版，只设置状态）
 async function loadSFX() {
   try {
-    console.log('🔊 音效系统使用 Tone.js Sampler');
-    
     // 设置UI状态
     if (AppState.dom.mainBtn) {
       AppState.dom.mainBtn.textContent = UI_TEXT.INITIAL;
@@ -65,9 +63,6 @@ function playSFX(name) {
     playSFXWithSampler(name);
     return;
   }
-  
-  // 如果音效Sampler不可用，静默失败
-  console.log('🔇 音效系统未就绪:', name);
 }
 
 // 使用音效Sampler播放

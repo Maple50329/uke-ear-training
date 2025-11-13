@@ -45,15 +45,11 @@ export class CustomSampler {
         }
 
         const loadPromise = new Promise(async (resolve, reject) => {
-            try {
-                console.log(`📥 开始加载自定义采样: ${noteName}`, audioUrl);
-                
+            try {                
                 // 创建 Player 实例
                 const player = new Tone.Player({
                     url: audioUrl,
-                    onload: () => {
-                        console.log(`✅ 自定义采样加载成功: ${noteName}`);
-                        
+                    onload: () => {                       
                         // 连接到主音量控制
                         if (AppState.audio.masterVolume) {
                             player.connect(AppState.audio.masterVolume);
@@ -125,9 +121,7 @@ export class CustomSampler {
                 
                 // 开始播放
                 const now = Tone.now();
-                player.start(now);
-                console.log(`🎵 播放自定义采样: ${noteName}`);
-                
+                player.start(now);                
                 // 设置自动停止
                 if (duration > 0) {
                     setTimeout(() => {
@@ -217,7 +211,6 @@ export class CustomSampler {
         this.players.clear();
         this.loadingPromises.clear();
         this.isInitialized = false;
-        console.log('🗑️ 自定义采样资源已清理');
     }
 }
 

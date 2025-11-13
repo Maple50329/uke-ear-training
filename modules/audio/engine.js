@@ -152,7 +152,6 @@ function initAudioContextResume() {
             showAudioError('音频初始化失败，请点击页面重试');
           });
       } else if (Tone.context.state === 'running') {
-        console.log('✅ AudioContext已在运行状态');
         AppState.audio.contextResumed = true;
         reconnectAudioNodes();
       }
