@@ -94,7 +94,6 @@ export class StandardMode {
     }
 
     handleRestartChoice() {
-        console.log('🔄 用户选择重新开始 - 执行完整复位');
         this.safeCallTool('handleResetQuestion');
     }
 
@@ -134,9 +133,7 @@ export class StandardMode {
     }
 
     // === 重新播放当前题目 ===
-    async replayCurrentQuestion() {
-        console.log('🔊 重新播放当前题目');
-        
+    async replayCurrentQuestion() {        
         // 确保状态正确
         AppState.quiz.answered = false;
         AppState.quiz.hasAnsweredCurrent = false;

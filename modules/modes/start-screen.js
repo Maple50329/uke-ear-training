@@ -219,18 +219,15 @@ initMobileCardsNavigation() {
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                color: white;
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 12px;
+                color: var(--text);
+                font-size: 18px;
                 font-weight: bold;
             `;
             header.style.position = 'relative';
             header.appendChild(indicator);
         }
     }
-
+    
     // 添加挑战模式标识
     addChallengeIndicator() {
         const header = document.querySelector('.daw-header');
@@ -243,18 +240,15 @@ initMobileCardsNavigation() {
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: linear-gradient(135deg, #FF6B6B, #FFA726);
-                color: white;
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 12px;
+                color: var(--text);
+                font-size: 18px;
                 font-weight: bold;
             `;
             header.style.position = 'relative';
             header.appendChild(indicator);
         }
     }
-
+    
     // 添加专项训练标识
     addTrainingIndicator() {
         const header = document.querySelector('.daw-header');
@@ -267,11 +261,8 @@ initMobileCardsNavigation() {
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: linear-gradient(135deg, #8B5CF6, #06B6D4);
-                color: white;
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 12px;
+                color: var(--text);
+                font-size: 18px;
                 font-weight: bold;
             `;
             header.style.position = 'relative';
