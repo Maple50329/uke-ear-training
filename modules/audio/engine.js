@@ -23,9 +23,22 @@ async function playNoteSampler(noteName, duration = 1.5) {
   if (!noteName) return;
   
   try {
+      // 播放单个音符时触发开始
+      window.dispatchEvent(new CustomEvent('audio-state-changed', {
+        detail: { isPlaying: true, action: 'note-playing', note: noteName }
+      }));
+      
       await playbackManager.playNote(noteName, duration);
+      
+      // 音符播放结束触发停止
+      window.dispatchEvent(new CustomEvent('audio-state-changed', {
+        detail: { isPlaying: false, action: 'note-ended' }
+      }));
   } catch (error) {
       console.error('播放失败:', error);
+      window.dispatchEvent(new CustomEvent('audio-state-changed', {
+        detail: { isPlaying: false, action: 'play-error' }
+      }));
   }
 }
 
@@ -47,7 +60,6 @@ function stopPlayback() {
   stopAllAudio();
   
   // 重置播放状态
-  AppState.audio.isPlaying = false;
   AppState.audio.shouldStop = false;  // ← 关键修复：重置停止标志
   AppState.quiz.locked = false;
   
