@@ -638,119 +638,154 @@
   /* 主内容区域 */
   .main-content {
     position: fixed !important;
-    top: 90px !important; /* 50px标题栏 + 40px描述栏 */
-    bottom: 84px !important; /* 操作栏高度 */
-    left: 0 !important;
-    right: 0 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    z-index: 1000 !important;
-    background: var(--bg) !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    
-    /* 移除旧的高度计算 */
-    height: auto !important;
+  top: 90px !important; /* 50px标题栏 + 40px描述栏 */
+  bottom: 84px !important; /* 操作栏高度 */
+  left: 0 !important;
+  right: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  z-index: 1000 !important;
+  background: var(--bg) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  
+  /* 移除旧的高度计算 */
+  height: auto !important;
   }
 
-    .central-container {
-      min-height: 100% !important;
-      padding: 20px 16px !important;
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-      align-items: center !important;
+  .central-container {
+    width: 100% !important;
+    height: 100% !important; /* 使用全部高度 */
+    padding: 0 !important; /* 移除内边距 */
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important; /* 垂直居中 */
+    align-items: center !important; /* 水平居中 */
+    gap: 0 !important; /* 移除间距 */
+    position: relative;
   }
+  
 
   /* 消息显示 */
   #msg {
     order: 1;
-    margin: 10px auto;
+    margin: 8px auto;
     font-size: 18px;
     min-height: 30px;
     flex-shrink: 0;
   }
 
   /* 答题区优化 */
-  #ans {
-    width: 100%;
-    max-width: 600px;
-    margin: 20px auto !important;
-    transform-origin: center top;
+#ans {
+  width: 100% !important;
+  height: 100% !important; /* 使用全部高度 */
+  max-width: none !important;
+  margin: 0 !important; /* 移除所有外边距 */
+  transform-origin: center center;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 4px 16px var(--shadow);
+  
+  /* 确保完全填充 */
+  flex: 1 !important;
+  min-height: 0 !important; /* 重要：允许缩小 */
+  display: grid !important;
+}
+  
+  /* 按键基础样式 */
+  .key-btn {
+    font-size: calc(1.6rem * var(--text-scale, 1)) !important; /* 增大字体 */
+    font-weight: 800 !important;
+    padding: 0 !important; /* 移除内边距 */
+    border: none !important;
+    background: var(--key-btn-bg) !important;
+    color: var(--key-btn-color) !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     position: relative;
-    z-index: 2;
-    box-shadow: 0 4px 16px var(--shadow);
+    text-shadow: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important; /* 移除圆角 */
+    
+    /* 完全填充 */
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+  
+  /* 8键模式：6列细分网格 */
+  #ans.notes-8 {
+    grid-template-columns: repeat(6, 1fr) !important;
+    grid-template-rows: repeat(3, 1fr) !important;
+    gap: 0 !important; /* 移除网格间隙 */
+    border-radius: 0 !important; /* 移除圆角以完全填充 */
+  }
+  
+  /* 8键前6个按钮各跨2小列 */
+  #ans.notes-8 .key-btn:nth-child(-n+6) {
+    grid-column: span 2 !important;
+  }
+  
+  /* 最后一行按钮通用样式 */
+  #ans .key-btn.last-row-btn {
+    min-height: 70px !important; /* 增加最后一行高度 */
+  }
+  
+  /* 8键最后2个按钮各跨3小列 */
+  #ans.notes-8 .key-btn.last-row-btn {
+    grid-column: span 3 !important;
+  }
+  
+  /* 13键模式：4列布局 */
+  #ans.notes-13 {
+    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-rows: repeat(4, 1fr) !important;
+    gap: 0 !important; /* 移除网格间隙 */
+    border-radius: 0 !important; /* 移除圆角以完全填充 */
+  }
+  
+  /* 13键最后1个按钮占满整行 */
+  #ans.notes-13 .key-btn.last-row-btn {
+    grid-column: 1 / -1 !important;
   }
 
-/* 8键模式：6列细分网格 */
-#ans.notes-8 {
-  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-  grid-template-rows: repeat(3, 1fr) !important;
-}
-
-/* 13键模式：4列布局 */
-#ans.notes-13 {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-template-rows: repeat(4, 1fr) !important;
-}
-
-/* 8键前6个按钮各跨2小列 */
-#ans.notes-8 .key-btn:nth-child(-n+6) {
-  grid-column: span 2 !important;
-}
-
-/* 最后一行按钮通用样式 */
-#ans .key-btn.last-row-btn {
-  aspect-ratio: unset !important;
-  padding-bottom: unset !important;
-  min-height: 60px !important;
-}
-
-/* 8键最后2个按钮各跨3小列 */
-#ans.notes-8 .key-btn.last-row-btn {
-  grid-column: span 3 !important;
-}
-
-/* 13键最后1个按钮占满整行 */
-#ans.notes-13 .key-btn.last-row-btn {
-  grid-column: 1 / -1 !important;
-}
-
-/* =========================
-   圆角调整 - 仅外框四角
-========================= */
-/* 8键圆角 */
+ /* 8键圆角设置 */
 #ans.notes-8 .key-btn:nth-child(1) {
   border-radius: 12px 0 0 0 !important;
 }
 #ans.notes-8 .key-btn:nth-child(3) {
   border-radius: 0 12px 0 0 !important;
 }
-#ans.notes-8 .key-btn.last-row-btn:nth-child(7) {
+#ans.notes-8 .key-btn:nth-child(7) {
   border-radius: 0 0 0 12px !important;
 }
-#ans.notes-8 .key-btn.last-row-btn:nth-child(8) {
+#ans.notes-8 .key-btn:nth-child(8) {
   border-radius: 0 0 12px 0 !important;
 }
 
-/* 13键圆角 - 强制设置 */
+/* 13键圆角设置 */
 #ans.notes-13 .key-btn:nth-child(1) {
   border-radius: 12px 0 0 0 !important;
 }
 #ans.notes-13 .key-btn:nth-child(4) {
   border-radius: 0 12px 0 0 !important;
 }
-#ans.notes-13 .key-btn.last-row-btn {
+#ans.notes-13 .key-btn:nth-child(13) {
   border-radius: 0 0 12px 12px !important;
 }
-
-  /* 答题按钮样式 */
-  .key-btn {
-    font-size: calc(1.3rem * var(--text-scale, 1)) !important;
-    min-height: 50px !important;
-    font-weight: 800 !important;
-    padding: 0 !important;
-  }
+  
+  /* 音级颜色定义 */
+  .key-btn[data-degree="I"] { border-left-color: var(--degree-I) !important; }
+  .key-btn[data-degree="II"] { border-left-color: var(--degree-II) !important; }
+  .key-btn[data-degree="III"] { border-left-color: var(--degree-III) !important; }
+  .key-btn[data-degree="IV"] { border-left-color: var(--degree-IV) !important; }
+  .key-btn[data-degree="V"] { border-left-color: var(--degree-V) !important; }
+  .key-btn[data-degree="VI"] { border-left-color: var(--degree-VI) !important; }
+  .key-btn[data-degree="VII"] { border-left-color: var(--degree-VII) !important; }
 
   /* =========================
      底部固定区域
@@ -769,6 +804,105 @@
     z-index: 1 !important; 
     height: 84px; /* 只需要操作栏的高度 */
   }
+
+  /* =========================
+   大播放键 - 一体化设计 (方案3)
+========================= */
+
+.big-play-button {
+  width: 76px !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  position: fixed !important;
+  bottom: 84px !important;
+  left: 50% !important;
+  transform: translateX(-50%) translateY(50%) !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--btn-primary-end) 100%) !important;
+  border: 6px solid var(--card) !important;
+  box-shadow: none !important;
+  z-index: 1001 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  
+  /* 重置桌面端可能影响的其他属性 */
+  color: transparent !important;
+  flex-direction: row !important;
+}
+
+/* 覆盖桌面端夜间模式样式 */
+body.dark .big-play-button {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--btn-primary-end) 100%) !important;
+  box-shadow: none !important;
+  border: 6px solid var(--card) !important;
+}
+
+body.dark .big-play-button:hover {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--btn-primary-end) 100%) !important;
+  box-shadow: none !important;
+  transform: translateX(-50%) translateY(50%) scale(1.05) !important;
+}
+
+body.dark .big-play-button:active {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--btn-primary-end) 100%) !important;
+  transform: translateX(-50%) translateY(50%) scale(0.95) !important;
+}
+
+body.dark .big-play-button.disabled {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--btn-primary-end) 100%) !important;
+  opacity: 0.6 !important;
+}
+
+/* 覆盖桌面端的图标样式 */
+.big-play-button .big-play-icon {
+  filter: brightness(0) invert(1) !important;
+  width: 32px !important;
+  height: 32px !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  transform: scale(1) !important;
+  transform-origin: center !important;
+}
+
+/* 隐藏桌面端的文字 */
+.big-play-button .big-play-text {
+  display: none !important;
+}
+
+/* 覆盖交互状态 */
+.big-play-button:hover {
+  transform: translateX(-50%) translateY(50%) scale(1.05) !important;
+  box-shadow: none !important;
+}
+
+.big-play-button:active {
+  transform: translateX(-50%) translateY(50%) scale(0.95) !important;
+  transition: all 0.1s ease !important;
+}
+
+.big-play-button.disabled {
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(50%) !important;
+  cursor: not-allowed !important;
+}
+
+.big-play-button.key-press-feedback {
+  transform: translateX(-50%) translateY(50%) scale(0.95) !important;
+  box-shadow: none !important;
+}
+
+/* 确保操作栏背景色与大播放键描边一致 */
+.mobile-bottom-container {
+  background: var(--card) !important;
+}
 
   /* 操作栏 */
   .mobile-bottom-controls {
@@ -857,35 +991,6 @@
     height: 100%;
   }
 
-  /* 同心圆伪元素 - 与操作栏形成联集效果 */
-.mobile-bottom-controls::before {
-  content: '';
-  position: absolute;
-  top: -45px; /* 同心圆半径45px，向上延伸 */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90px; /* 同心圆直径90px */
-  height: 90px;
-  border-radius: 50%;
-  background: var(--card); /* 与操作栏背景色相同 */
-  z-index: -1; /* 在大播放键下层 */
-  pointer-events: none; /* 不干扰点击事件 */
-  
-  /* 确保与操作栏视觉连贯 */
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-/* 深色主题优化 */
-@media (prefers-color-scheme: dark) {
-  .mobile-bottom-controls::before {
-    box-shadow: 
-      0 4px 12px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-}
-
   /* 属性项 */
   .property-item-simple {
     display: flex !important;
@@ -930,65 +1035,6 @@
     background: var(--accent-hover);
     transform: translateY(-1px);
   }
-
-  /* 大播放键精确定位 */
-.big-play-button {
-  width: 70px !important;
-  height: 70px !important;
-  min-height: 70px !important;
-  position: fixed !important;
-  bottom: 84px !important; /* 操作栏高度84px */
-  left: 50% !important;
-  transform: translateX(-50%) translateY(50%) !important; /* 关键：圆心对齐边缘 */
-  border-radius: 50% !important;
-  background: linear-gradient(135deg, var(--accent-color) 0%, var(--btn-primary-end) 100%) !important;
-  box-shadow: none !important;
-  z-index: 1001 !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  border: none !important;
-  cursor: pointer;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-/* 大播放键图标调整 */
-.big-play-button .big-play-icon {
-  filter: brightness(0) invert(1) !important;
-  width: 32px !important;
-  height: 32px !important;
-  background-size: contain !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  transform: scale(1) !important;
-  transform-origin: center !important;
-}
-
-/* 交互状态 */
-.big-play-button:hover {
-  transform: translateX(-50%) translateY(50%) scale(1.05) !important;
-  box-shadow: none !important;
-}
-
-.big-play-button:active {
-  transform: translateX(-50%) translateY(50%) scale(0.95) !important;
-  transition: all 0.1s ease !important;
-}
-
-.big-play-button.disabled {
-  opacity: 1 !important;
-  transform: translateX(-50%) translateY(50%) !important;
-  cursor: not-allowed !important;
-}
-
-.big-play-button.key-press-feedback {
-  transform: translateX(-50%) translateY(50%) scale(0.95) !important;
-  box-shadow: none !important;
-}
 
 /* =========================
    移动端标签页导航系统
@@ -1558,10 +1604,13 @@
     transform: scale(0.9) !important;
   }
 
-  #msg {
-    font-size: 16px;
-    margin: 12px auto 6px;
-    padding: 0 12px;
+  #ans {
+    margin: 6px 0 !important;
+  }
+
+  .central-container {
+    padding: 6px 8px !important; /* 进一步减少内边距 */
+    gap: 6px !important;
   }
 
   .big-play-button {
@@ -1576,10 +1625,25 @@
   }
 
   .key-btn {
-    font-size: calc(1.2rem * var(--text-scale, 1)) !important;
-    min-height: 45px !important;
+    min-height: 58px !important;
+    padding: 14px 6px !important;
+    font-size: calc(1.3rem * var(--text-scale, 1)) !important;
   }
 
+  #ans.notes-8 {
+    grid-template-rows: repeat(3, minmax(58px, 1fr)) !important;
+    min-height: 174px !important;
+  }
+  
+  #ans.notes-13 {
+    grid-template-rows: repeat(4, minmax(58px, 1fr)) !important;
+    min-height: 232px !important;
+  }
+  
+  #ans .key-btn.last-row-btn {
+    min-height: 62px !important;
+  }
+  
   .mobile-control-btn {
     padding: 14px 8px;
     font-size: 13px;
@@ -1735,17 +1799,39 @@
   #msg {
     font-size: 15px;
   }
+  .central-container {
+    padding: 4px 6px !important;
+    gap: 4px !important;
+  }
+  #ans {
+    margin: 4px 0 !important;
+  }
 
+  #ans.notes-8 {
+    grid-template-rows: repeat(3, minmax(52px, 1fr)) !important;
+    min-height: 156px !important;
+  }
+  
+  #ans.notes-13 {
+    grid-template-rows: repeat(4, minmax(52px, 1fr)) !important;
+    min-height: 208px !important;
+  }
+  
+  #ans .key-btn.last-row-btn {
+    min-height: 56px !important;
+  }
   .big-play-button {
     width: 90px;
     height: 90px;
   }
 
   .key-btn {
-    font-size: calc(1.1rem * var(--text-scale, 1)) !important;
-    min-height: 40px !important;
+    min-height: 52px !important;
+    padding: 12px 4px !important;
+    font-size: calc(1.2rem * var(--text-scale, 1)) !important;
   }
 
+  
   .mobile-control-btn {
     padding: 12px 6px;
     font-size: 12px;
