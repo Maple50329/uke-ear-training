@@ -406,9 +406,6 @@ updateBestAccuracy() {
     // ✅ 关键修改：确保在数据完全加载后再更新显示
     setTimeout(() => {
       this.updateDisplay();
-      
-      // ✅ 通知外部：数据已加载完成
-      window.dispatchEvent(new CustomEvent('statsLoaded'));
     }, 100);
   }
 

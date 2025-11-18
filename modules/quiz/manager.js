@@ -53,7 +53,6 @@ async function playQuizSequence(isReplay = false) {
             AppState.quiz.currentKey = newKey;
             AppState.quiz.pendingKeyChange = null;
             
-            // 更新UI下拉框显示实际调性
             const keySelect = document.getElementById('keySelect');
             if (keySelect) keySelect.value = newKey;
         }
@@ -64,24 +63,30 @@ async function playQuizSequence(isReplay = false) {
             AppState.quiz.questionBaseMode = newMode;
             AppState.quiz.pendingBaseModeChange = null;
             
-            // 更新UI按钮显示实际模式
             const modeButtons = document.querySelectorAll('.mode-btn');
             modeButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.mode === newMode);
             });
         }
+        
         // 应用预选难度
         if (AppState.quiz.pendingDifficultyChange) {
             const newDifficulty = AppState.quiz.pendingDifficultyChange;
             AppState.quiz.currentDifficulty = newDifficulty;
             AppState.quiz.pendingDifficultyChange = null;
             
-            // 更新UI下拉框显示实际难度
             const difficultySelect = document.getElementById('difficultySelect');
             if (difficultySelect) difficultySelect.value = newDifficulty;
-
         }
-    
+
+          // ========== 修复：应用预选设置后通知状态栏
+        window.dispatchEvent(new CustomEvent('settings-applied', {
+            detail: {
+                key: AppState.quiz.currentKey,
+                baseMode: AppState.quiz.questionBaseMode,
+                difficulty: AppState.quiz.currentDifficulty
+            }
+        }));
     }
 
     /* ---------- 1. 新题目：先更新调号与基准音 ---------- */
@@ -164,7 +169,6 @@ async function playQuizSequence(isReplay = false) {
     }
     
     AppState.quiz.locked = true;
-    AppState.audio.isPlaying = true;
     updateAnswerState();
     updateResetButtonState();
     updateBigButtonState();
@@ -238,7 +242,6 @@ async function playQuizSequence(isReplay = false) {
             if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_SCALE;
             updateBigButtonState();
             updateAllMessages(UI_TEXT.PLAYING_SCALE);
-            AppState.audio.isPlaying = true; 
             updateAnswerState();
             
             for (const note of naturalScale) {
@@ -268,7 +271,6 @@ async function playQuizSequence(isReplay = false) {
         if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_REFERENCE;
         updateBigButtonState();
         updateAllMessages(UI_TEXT.PLAYING_REFERENCE);
-        AppState.audio.isPlaying = true; 
         updateAnswerState();
         
         // 第一次播放基准音
@@ -309,10 +311,7 @@ async function playQuizSequence(isReplay = false) {
             AppState.dom.mainBtn.textContent = isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET;
         }
         updateBigButtonState();
-        
         updateAllMessages(isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET);
-        
-        AppState.audio.isPlaying = true; 
         updateAnswerState();
         
         // 添加目标音播放的视觉反馈
@@ -336,7 +335,6 @@ async function playQuizSequence(isReplay = false) {
         updateAllMessages('播放出错，请重试');
     } finally {
         AppState.quiz.locked = false;
-        AppState.audio.isPlaying = false; 
         updateModeVisuals();
         updateAnswerState();
         updateResetButtonState();
@@ -500,9 +498,7 @@ if (typeof updateRightPanelStats === 'function') {
         // 重置当前题目的尝试状态（为下一题准备）
         AppState.quiz.attemptCount = 0;
         
-        // 触发答对事件，让状态栏开始监听面板变化
-    window.dispatchEvent(new CustomEvent('answer-correct'));
-    
+
         // 答对后立即处理，不设置定时器
         stopPlayback();
         if (AppState.dom.mainBtn) {
