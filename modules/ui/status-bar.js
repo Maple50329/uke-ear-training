@@ -5,17 +5,34 @@ const bar = document.createElement('div');
 bar.id = 'desktopStatusBar';
 
 /* ---------- 内部更新函数 ---------- */
-const update = () => {
+const update = async () => {
   const { quiz, audio } = AppState;
-  
-  // 从 quiz 状态获取基准音设置，确保与播放逻辑一致
   const baseMode = quiz.questionBaseMode || 'c';
-  const base = baseMode === 'c' ? '固定C' : '固定A';
+  const base = baseMode === 'c' ? 'Do' : 'La';
   
   const key  = quiz.currentKey ?? 'C';
   const diff = quiz.currentDifficulty ?? 'basic';
-  const range= AppGlobal.getTool('getCurrentRange')?.()?.[0]?.includes('3') ? '小字组' : '小字一组';
-  const play = audio.isPlaying ? '🔊 播放中' : '🔇 就绪';
+
+  let currentRangeArray = [];
+  try {
+    const rangeTool = AppGlobal.getTool('getCurrentRange');
+    if (rangeTool) {
+      const rangeResult = rangeTool();
+      // 检查是否是 Promise
+      currentRangeArray = rangeResult && typeof rangeResult.then === 'function' 
+        ? await rangeResult 
+        : rangeResult || [];
+    }
+  } catch (error) {
+    console.warn('状态栏: 获取音域数据失败', error);
+    currentRangeArray = [];
+  }
+  
+  const range = currentRangeArray.length > 0 && currentRangeArray[0]?.includes('3') 
+    ? '小字组' 
+    : '小字一组';
+  
+  const play = audio.isPlaying ? '🔊 播放中' : '🔇 已就绪';
 
   bar.innerHTML = `
     <span class="sb-item">基准音：${base}</span>
@@ -33,32 +50,33 @@ const update = () => {
 /* ---------- 监听状态变化 ---------- */
 const events = [
   'range-changed',
-  'statsLoaded',
-  'click',
-  'keydown',
-  'visibilitychange',
-  'quiz-started',
-  'question-changed',
   'settings-updated',
   'base-mode-changed',
   'quiz-reset',
-  'answer-correct',
   'initial-state'
 ];
 events.forEach(e => window.addEventListener(e, () => requestAnimationFrame(update)));
 
 // 监听左侧面板设置变化
 function setupPanelChangeListeners() {
-
   // 监听基准音按钮点击
   const modeButtons = document.querySelectorAll('.mode-btn');
   modeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
+      const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
+      
       if (shouldSyncPanelChanges()) {
         // 立即更新基准音模式状态
-        const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
         AppState.quiz.questionBaseMode = baseMode;
         requestAnimationFrame(update);
+        
+        // 触发基准音变化事件
+        window.dispatchEvent(new CustomEvent('base-mode-changed', {
+          detail: { mode: baseMode }
+        }));
+      } else {
+        // 在播放状态或已答题状态，保存为预选设置
+        AppState.quiz.pendingBaseModeChange = baseMode;
       }
     });
   });
@@ -70,6 +88,12 @@ function setupPanelChangeListeners() {
       if (shouldSyncPanelChanges()) {
         AppState.quiz.currentKey = keySelect.value;
         requestAnimationFrame(update);
+        
+        // 触发设置更新事件
+        window.dispatchEvent(new CustomEvent('settings-updated'));
+      } else {
+        // 在播放状态或已答题状态，保存为预选设置
+        AppState.quiz.pendingKeyChange = keySelect.value;
       }
     });
   }
@@ -81,6 +105,12 @@ function setupPanelChangeListeners() {
       if (shouldSyncPanelChanges()) {
         AppState.quiz.currentDifficulty = difficultySelect.value;
         requestAnimationFrame(update);
+        
+        // 触发设置更新事件
+        window.dispatchEvent(new CustomEvent('settings-updated'));
+      } else {
+        // 在播放状态或已答题状态，保存为预选设置
+        AppState.quiz.pendingDifficultyChange = difficultySelect.value;
       }
     });
   }
@@ -91,9 +121,36 @@ function setupPanelChangeListeners() {
     btn.addEventListener('click', () => {
       if (shouldSyncPanelChanges()) {
         // 短暂延迟确保音域已更新
-        setTimeout(() => requestAnimationFrame(update), 50);
+        setTimeout(() => {
+          requestAnimationFrame(update);
+          // 触发设置更新事件
+          window.dispatchEvent(new CustomEvent('settings-updated'));
+        }, 50);
       }
     });
+  });
+}
+
+// 音频状态管理函数
+function setupAudioStateManagement() {
+  // 监听音频状态变化事件
+  window.addEventListener('audio-state-changed', (event) => {
+    AppState.audio.isPlaying = event.detail.isPlaying;
+    console.log('🔊 音频状态变化:', AppState.audio.isPlaying ? '播放中' : '就绪', '原因:', event.detail.action);
+    requestAnimationFrame(update);
+  });
+  
+  // 监听播放/停止相关的其他事件，确保状态同步
+  window.addEventListener('quiz-reset', () => {
+    // 复位时确保音频状态为停止
+    AppState.audio.isPlaying = false;
+    setTimeout(() => requestAnimationFrame(update), 150);
+  });
+  
+  window.addEventListener('answer-correct', () => {
+    // 答对时确保音频状态为停止
+    AppState.audio.isPlaying = false;
+    // 这里不调用 update()，保持状态栏不变
   });
 }
 
@@ -101,14 +158,20 @@ function setupPanelChangeListeners() {
 function shouldSyncPanelChanges() {
   const { quiz } = AppState;
   
+  // 应该同步的情况：
   const shouldSync = (
     !quiz.hasStarted ||        // 初始状态（未开始）
     quiz.fromReset ||          // 复位后
-    quiz.answered ||           // 已回答（包括答对后）
-    !quiz.currentTargetNote    // 没有当前题目
+    (!quiz.currentTargetNote && !quiz.answered) // 没有当前题目且未答题
   );
   
-  return shouldSync;
+  // 不应该同步的情况：
+  const shouldNotSync = (
+    (quiz.hasStarted && quiz.currentTargetNote && !quiz.answered) || // 播放中但未答题
+    quiz.answered                          // 已回答（包括答对后）
+  );
+  
+  return shouldSync && !shouldNotSync;
 }
 
 // 专门监听基准音模式状态变化
@@ -211,10 +274,45 @@ export function initStatusBar() {
   setupPanelChangeListeners();
   setupRangeChangeListener();
   checkBaseModeChange();
+  setupStatusBarEventListeners();
+  setupAudioStateManagement();
   update();
   
   // 设置初始状态
   AppState.quiz.hasStarted = false;
   AppState.quiz.answered = false;
   AppState.quiz.currentTargetNote = null;
+}
+
+// ========== 新增函数：设置状态栏事件监听器 ========== 
+function setupStatusBarEventListeners() {
+  // 新增的事件监听
+  const newEvents = [
+    'quiz-reset-complete',  // 复位完成
+    'settings-applied',     // 设置已应用
+    'pending-changes-applied' // 预选设置已应用
+  ];
+  
+  newEvents.forEach(e => window.addEventListener(e, () => {
+    console.log(`状态栏: 收到 ${e} 事件，更新显示`);
+    requestAnimationFrame(update);
+  }));
+  
+  // 现有的复位事件监听（增强）
+  window.addEventListener('quiz-reset', () => {
+    // 短暂延迟，确保复位完成后再更新
+    setTimeout(() => requestAnimationFrame(update), 150);
+  });
+  
+  // 设置更新事件监听
+  window.addEventListener('settings-updated', () => {
+    requestAnimationFrame(update);
+  });
+  
+  // 基准音模式变化事件监听
+  window.addEventListener('base-mode-changed', () => {
+    requestAnimationFrame(update);
+  });
+  
+
 }

@@ -1,5 +1,6 @@
 import { updateRange } from './range-manager.js';
 import { AppState } from '../core/state.js';
+import AppGlobal from '../core/app.js';
 
 /**
  * 性能与体验优化记录
@@ -46,8 +47,8 @@ export class MobileContentLoader {
         <div class="mobile-settings-group">
           <div class="mobile-settings-title">基准音设置</div>
           <div class="mobile-mode-buttons" data-role="mode-group">
-            <button class="mobile-mode-btn active" data-mode="c">固定C</button>
-            <button class="mobile-mode-btn" data-mode="a">固定A</button>
+            <button class="mobile-mode-btn active" data-mode="c">Do</button>
+            <button class="mobile-mode-btn" data-mode="a">La</button>
           </div>
         </div>
 
@@ -128,6 +129,17 @@ export class MobileContentLoader {
       } else if (e.target.id === 'mobileDifficultySelect') {
         document.getElementById('difficultySelect').value = e.target.value;
         document.getElementById('difficultySelect').dispatchEvent(new Event('change'));
+        
+        // 如果当前未在播放中，立即重新渲染答题区（确保重置后切换难度生效）
+        if (!AppState.quiz.locked && !AppState.quiz.hasStarted) {
+          setTimeout(() => {
+            const renderFunc = AppGlobal.getTool('renderAnswerButtons');
+            const initAreaFunc = AppGlobal.getTool('initAnswerArea');
+            if (renderFunc && initAreaFunc) {
+              initAreaFunc(); // 重新初始化答题区
+            }
+          }, 50);
+        }
       }
     });
 
