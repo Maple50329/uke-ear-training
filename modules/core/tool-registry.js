@@ -61,6 +61,7 @@ const LAZY_TOOLS = {
   'getCurrentRange': () => import('../ui/range-manager.js').then(m => m.getCurrentRange),
   'applyPendingRangeChange': () => import('../ui/range-manager.js').then(m => m.applyPendingRangeChange),
   'updateRange': () => import('../ui/range-manager.js').then(m => m.updateRange),
+  'getCurrentKey': () => import('../ui/range-manager.js').then(m => m.getCurrentKey),
 
   // ==================== 音频管理 ====================
   'stopPlayback': () => import('../audio/engine.js').then(m => m.stopPlayback),

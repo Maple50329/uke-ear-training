@@ -8,8 +8,8 @@ export const notes = [
   "C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"
 ];
 export const ranges = {
-  low: notes.slice(0, 12),   // C4-B4
-  mid: notes.slice(12, 24),  // C5-B5
+  low: notes.slice(0, 12),   // C3-B3 小字组
+  mid: notes.slice(12, 24),  // C4-B4 小字一组
 };
 export const map = {
   // C3-B3 小字组

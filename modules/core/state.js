@@ -28,7 +28,6 @@ export const AppState = {
     contextResumed: false,
     resumeAttempted: false,
     nodesReconnected: false,
-    isPlaying: false,
     autoNextDelay: localStorage.getItem('autoNextDelay') || 3,
     autoNextEnabled: localStorage.getItem('autoNextEnabled') === 'true' || false
   },
@@ -55,6 +54,8 @@ export const AppState = {
     pendingKeyChange: null,
     pendingDifficultyChange: null,
     pendingBaseModeChange: null,
+    pendingRangeChange: null,
+    currentRange: 'low',
     originalKey: 'C'
   },
   

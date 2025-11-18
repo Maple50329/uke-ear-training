@@ -362,68 +362,123 @@ export async function bootStandardMode() {
     updatePitchDisplayFunc?.(null, null);
 
     /* -------------- 主按钮点击事件 -------------- */
-AppState.dom.mainBtn.onclick = async () => {
-    if (AppState.quiz.locked) return;
-    AppState.quiz.locked = true;
+    AppState.dom.mainBtn.onclick = async () => {
+        if (AppState.quiz.locked) return;
+        AppState.quiz.locked = true;
     
-    // 统一使用工具箱
-    const updateResetButtonStateFunc = AppGlobal.getTool('updateResetButtonState');
-    const stopPlaybackFunc = AppGlobal.getTool('stopPlayback');
-    const playQuizSequenceFunc = AppGlobal.getTool('playQuizSequence');
-    const updateBigButtonStateFunc = AppGlobal.getTool('updateBigButtonState');
-    
-    if (!playQuizSequenceFunc) {
-        console.error('必要的工具函数未找到');
-        AppState.quiz.locked = false;
-        return;
-    }
-    
-    updateResetButtonStateFunc?.();
-    stopPlaybackFunc?.();
-    
-    try {
-        AppState.quiz.answered = false;
-        AppState.audio.shouldStop = false;
+        const applyPendingChanges = () => {
+            let hasChanges = false;
+            let appliedChanges = {
+                key: AppState.quiz.currentKey,
+                baseMode: AppState.quiz.questionBaseMode,
+                difficulty: AppState.quiz.currentDifficulty
+            };
+            
+            if (AppState.quiz.pendingKeyChange) {
+                AppState.quiz.currentKey = AppState.quiz.pendingKeyChange;
+                AppState.quiz.pendingKeyChange = null;
+                appliedChanges.key = AppState.quiz.currentKey;
+                hasChanges = true;
+            }
+            
+            if (AppState.quiz.pendingDifficultyChange) {
+                AppState.quiz.currentDifficulty = AppState.quiz.pendingDifficultyChange;
+                AppState.quiz.pendingDifficultyChange = null;
+                appliedChanges.difficulty = AppState.quiz.currentDifficulty;
+                hasChanges = true;
+            }
+            
+            if (AppState.quiz.pendingBaseModeChange) {
+                AppState.quiz.questionBaseMode = AppState.quiz.pendingBaseModeChange;
+                AppState.quiz.pendingBaseModeChange = null;
+                appliedChanges.baseMode = AppState.quiz.questionBaseMode;
+                hasChanges = true;
+            }
+            
+            // ========== 修复：应用变更后立即通知状态栏 ==========
+            if (hasChanges) {
+                window.dispatchEvent(new CustomEvent('pending-changes-applied', {
+                    detail: appliedChanges
+                }));
+                
+                // 同时触发设置更新事件（保持兼容性）
+                window.dispatchEvent(new CustomEvent('settings-updated'));
+            }
+            
+            return hasChanges;
+        };
         
-        const mainBtn = AppGlobal.getTool('getStartButton')?.();
-        const buttonText = mainBtn?.textContent || '';
+        // 在播放前应用 pending 状态
+        const changesApplied = applyPendingChanges();
         
-        if (buttonText.includes('下一题') || buttonText === UI_TEXT.NEXT) {
-            AppState.quiz.canReset = true;
-            updateResetButtonStateFunc?.();
-            
-            // 新题目前重置音高显示
-            const updatePitchFunc = AppGlobal.getTool('updateCurrentPitchDisplay');
-            updatePitchFunc?.('--', null);
-            
-            await playQuizSequenceFunc(false);
-        } else if ((buttonText.includes('再听一遍') || buttonText === UI_TEXT.REPLAY) && 
-                   AppState.quiz.hasStarted) {
-            // 重播前重置音高显示
-            const updatePitchFunc = AppGlobal.getTool('updateCurrentPitchDisplay');
-            updatePitchFunc?.('--', null);
-            
-            await playQuizSequenceFunc(true);
-        } else {
-            AppState.quiz.canReset = true;
-            updateResetButtonStateFunc?.();
-            
-            // 首次播放前重置音高显示
-            const updatePitchFunc = AppGlobal.getTool('updateCurrentPitchDisplay');
-            updatePitchFunc?.('--', null);
-            
-            await playQuizSequenceFunc(false);
+        // 统一使用工具箱
+        const updateResetButtonStateFunc = AppGlobal.getTool('updateResetButtonState');
+        const stopPlaybackFunc = AppGlobal.getTool('stopPlayback');
+        const playQuizSequenceFunc = AppGlobal.getTool('playQuizSequence');
+        const updateBigButtonStateFunc = AppGlobal.getTool('updateBigButtonState');
+        
+        if (!playQuizSequenceFunc) {
+            console.error('必要的工具函数未找到');
+            AppState.quiz.locked = false;
+            return;
         }
-    } catch (error) {
-        console.error('播放失败:', error);
-        AppState.quiz.locked = false;
+        
         updateResetButtonStateFunc?.();
-    } finally {
-        AppState.quiz.locked = false;
-        updateResetButtonStateFunc?.();
-        updateBigButtonStateFunc?.();
-    }
-};
+        stopPlaybackFunc?.();
+        
+        try {
+            AppState.quiz.answered = false;
+            AppState.audio.shouldStop = false;
+            
+            const mainBtn = AppGlobal.getTool('getStartButton')?.();
+            const buttonText = mainBtn?.textContent || '';
+            
+            if (buttonText.includes('下一题') || buttonText === UI_TEXT.NEXT) {
+                AppState.quiz.canReset = true;
+                updateResetButtonStateFunc?.();
+                
+                // 新题目前重置音高显示
+                const updatePitchFunc = AppGlobal.getTool('updateCurrentPitchDisplay');
+                updatePitchFunc?.('--', null);
+                
+                // 如果有预选设置应用，短暂延迟确保状态栏更新完成
+                if (changesApplied) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                await playQuizSequenceFunc(false);
+            } else if ((buttonText.includes('再听一遍') || buttonText === UI_TEXT.REPLAY) && 
+                       AppState.quiz.hasStarted) {
+                // 重播前重置音高显示
+                const updatePitchFunc = AppGlobal.getTool('updateCurrentPitchDisplay');
+                updatePitchFunc?.('--', null);
+                
+                await playQuizSequenceFunc(true);
+            } else {
+                AppState.quiz.canReset = true;
+                updateResetButtonStateFunc?.();
+                
+                // 首次播放前重置音高显示
+                const updatePitchFunc = AppGlobal.getTool('updateCurrentPitchDisplay');
+                updatePitchFunc?.('--', null);
+                
+                // 如果有预选设置应用，短暂延迟确保状态栏更新完成
+                if (changesApplied) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                await playQuizSequenceFunc(false);
+            }
+        } catch (error) {
+            console.error('播放失败:', error);
+            AppState.quiz.locked = false;
+            updateResetButtonStateFunc?.();
+        } finally {
+            AppState.quiz.locked = false;
+            updateResetButtonStateFunc?.();
+            updateBigButtonStateFunc?.();
+        }
+    };
 
     /* =====  底部状态栏 + 智能缩放  ===== */
     // 1. 仅桌面端初始化状态栏
