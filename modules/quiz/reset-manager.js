@@ -1,225 +1,233 @@
 import { AppState } from '../core/state.js';
 import { UI_TEXT, KEY_SCALES } from '../core/constants.js';
 import { updateBigButtonState } from '../ui/buttons.js';
-import { disableAnswerButtons,updateAllMessageDisplays } from '../ui/feedback.js';
+import { disableAnswerButtons,updateAllMessageDisplays ,showWelcomeOverlays } from '../ui/feedback.js';
 import { resetAnswerInfo, hideInfoCards } from '../ui/panel-manager.js';
+import { resetErrorCount } from '../quiz/error-limit-manager.js';
 import statsManager from './stats-manager.js';
-// 导入工具箱
 import AppGlobal from '../core/app.js';
 
 function resetAnswerUI() {
-  // 重置所有按键状态
-  const keyButtons = document.querySelectorAll('.key-btn');
-  keyButtons.forEach(btn => {
-    btn.classList.remove('hit', 'miss');
-    btn.disabled = false;
-    btn.style.pointerEvents = 'auto';
-    btn.style.opacity = '1';
+  const ansArea = document.getElementById('ans');
+  if (!ansArea) return;
+  
+  const buttons = ansArea.querySelectorAll('.key-btn');
+  buttons.forEach(btn => {
+      btn.classList.remove(
+          'hit', 'miss', 
+          'scale-playing', 'reference-playing', 'target-playing',
+          'active', 'highlight', 'pulse', 'glow'
+      );
+      
+      // 重置所有内联样式为空
+      btn.style.backgroundColor = '';
+      btn.style.borderColor = '';
+      btn.style.boxShadow = '';
+      btn.style.transform = '';
+      btn.style.opacity = '';
+      btn.style.filter = '';
+      btn.style.pointerEvents = '';
+      btn.style.cursor = '';
+      btn.disabled = true;
   });
+  
+  // 重置答题区容器样式
+  ansArea.style.opacity = '';
+  ansArea.style.pointerEvents = '';
+  ansArea.classList.add('disabled');
 }
-
 // 重置到欢迎界面状态
 function resetToWelcomeScreen() {
-  AppState.ui.firstPlay = true;
-  
-  // 重置当前题目的尝试状态
-  AppState.quiz.hasAnsweredCurrent = false;
-  AppState.quiz.attemptCount = 0;
-  
-  // 清理所有预选状态
-  AppState.quiz.pendingKeyChange = null;
-  AppState.quiz.pendingBaseModeChange = null;
-  AppState.quiz.pendingDifficultyChange = null;
-  
-  // 使用工具箱显示欢迎界面
-  const showWelcome = AppGlobal.getTool('showWelcomeOverlays');
-  showWelcome();
+  // 显示欢迎覆盖层
+  showWelcomeOverlays();
   
   // 重置消息显示
-  if (AppState.dom.msgDisplay) {
-      updateAllMessageDisplays('点击开始练习');
-      AppState.dom.msgDisplay.style.display = 'block';
+  updateAllMessageDisplays('已复位，点击开始练习');
+  
+  // 彻底锁定答题区
+  const ansArea = document.getElementById('ans');
+  if (ansArea) {
+    ansArea.classList.add('disabled');
+    const buttons = ansArea.querySelectorAll('.key-btn');
+    buttons.forEach(btn => {
+      btn.classList.remove('hit', 'miss', 'scale-playing', 'reference-playing', 'target-playing');
+      btn.disabled = true;
+    });
   }
   
-  if (window.updateBigButtonState) {
-      window.updateBigButtonState();
+  // 重置主按钮
+  if (AppState.dom.mainBtn) {
+    AppState.dom.mainBtn.textContent = UI_TEXT.INITIAL;
+  }
+  
+  // 🔴 修复：确保大播放按钮状态更新
+  const updateBigButtonState = AppGlobal.getTool('updateBigButtonState');
+  const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+  if (updateBigButtonState) updateBigButtonState();
+  if (updateResetButtonState) updateResetButtonState();
+  
+  // 隐藏信息卡片
+  const hideCards = AppGlobal.getTool('hideInfoCards');
+  const resetInfo = AppGlobal.getTool('resetAnswerInfo');
+  if (hideCards) hideCards();
+  if (resetInfo) resetInfo();
+  
+  // 重置音高显示
+  const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
+  if (updatePitch) updatePitch('--', null);
+  
+  // 🔴 关键修复：重新初始化答题区
+  setTimeout(() => {
+    const initAnswerArea = AppGlobal.getTool('initAnswerArea');
+    if (initAnswerArea) {
+      console.log('🔄 复位后重新初始化答题区');
+      initAnswerArea();
+    } else {
+      console.error('❌ initAnswerArea 工具未找到');
     }
+  }, 100);
 }
 
 function handleResetQuestion() {
-  if (AppState.quiz.locked) return;
-
-  const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
-  const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
-  const renderFunc = AppGlobal.getTool('renderAnswerButtons');
-  const disableButtons = AppGlobal.getTool('disableAnswerButtons');
-  const resetInfo = AppGlobal.getTool('resetAnswerInfo');
+  console.log('🔄 执行彻底复位');
   
-  // 添加安全检查
+  // 1. 重置错误次数
+  const resetErrorCount = AppGlobal.getTool('resetErrorCount');
+    if (resetErrorCount) {
+        resetErrorCount();
+    }
+
+  // 2. 设置复位标志
+  AppState.quiz.fromReset = true;
+  AppState.audio.shouldStop = true;
+  
+  // 3. 立即停止所有音频
+  const stopPlayback = AppGlobal.getTool('stopPlayback');
+  if (stopPlayback) stopPlayback();
+  
+  // 4. 清除自动下一题定时器
+  if (AppState.quiz.autoNextTimer) {
+    clearTimeout(AppState.quiz.autoNextTimer);
+    AppState.quiz.autoNextTimer = null;
+  }
+  
+  // 5. 取消统计记录
   if (typeof statsManager !== 'undefined' && statsManager && typeof statsManager.cancelCurrentQuestion === 'function') {
     statsManager.cancelCurrentQuestion();
   }
-
-  // 在复位开始时清理预选状态
-  AppState.quiz.pendingKeyChange = null;
-  AppState.quiz.pendingBaseModeChange = null;
-  AppState.quiz.pendingDifficultyChange = null;
   
-  // 欢迎界面重置
-  resetToWelcomeScreen();
-  updateModeVisuals();
+  // 6. 清理视觉反馈定时器
+  if (window.visualFeedbackTimer) {
+    clearTimeout(window.visualFeedbackTimer);
+    window.visualFeedbackTimer = null;
+  }
   
-  // 确保基准音按钮可用
-  const modeButtons = document.querySelectorAll('.mode-btn');
-  modeButtons.forEach(btn => {
-    btn.disabled = false;
+  // 7. 清理所有可能的延迟定时器
+  const allTimers = [
+    'scalePlayTimer', 'referencePlayTimer', 'targetPlayTimer',
+    'scaleDelay', 'referenceDelay', 'targetDelay', 'noteIntervalDelay',
+    'currentDelayTimer' // 来自 interruptibleDelay 的定时器
+  ];
+  allTimers.forEach(timer => {
+    if (window[timer]) {
+      clearTimeout(window[timer]);
+      window[timer] = null;
+    }
   });
-
-  // 立即重置主显示（先清掉旧内容）
-  updatePitch(null, null);
-
-  AppState.quiz.fromReset = true;
-  if (AppState.dom.msgDisplay) {
-    updateAllMessageDisplays('已重置练习状态');
-    AppState.dom.msgDisplay.style.display = 'block';
-  }
-
-  // ===== 统一处理难度选择逻辑 =====
-  // 1. 首先检查是否有待应用的预选难度（最高优先级）
-  const pendingDifficulty = AppState.quiz.pendingDifficultyChange;
-
-  // 2. 获取当前选择器的值（桌面端和移动端）
-  const mobileSelect = document.getElementById('mobileDifficultySelect');
-  const desktopSelect = document.getElementById('difficultySelect');
-
-  // 3. 判断哪个选择器当前可见（移动端优先）
-  const currentSelectValue = (mobileSelect && mobileSelect.offsetParent !== null) 
-    ? mobileSelect.value 
-    : (desktopSelect?.value || 'basic');
-
-  // 4. 确定最终难度：预选值 > 当前选择器值 > 默认值
-  const difficulty = pendingDifficulty || currentSelectValue;
-
-  // 5. 同步更新AppState，确保状态一致
-  AppState.quiz.currentDifficulty = difficulty;
-  AppState.quiz.currentKey = document.getElementById('keySelect')?.value || 'C';
-
-  // 6. 清除已应用的预选状态
-  AppState.quiz.pendingDifficultyChange = null;
+  
+  // 8. 彻底重置状态
+  AppState.quiz.hasStarted = false;
+  AppState.quiz.answered = false;
+  AppState.quiz.hasAnsweredCurrent = false;
+  AppState.quiz.attemptCount = 0;
+  AppState.quiz.isReplayMode = false;
+  AppState.quiz.currentTargetNote = null;
+  AppState.quiz.currentNoteIdx = -1;
+  AppState.quiz.locked = false;
+  AppState.ui.firstPlay = true;
+  AppState.audio.isPlaying = false;
+  
+  // 8. 清理预选状态
   AppState.quiz.pendingKeyChange = null;
   AppState.quiz.pendingBaseModeChange = null;
-  // ===== 结束 =====
-
-  // 计算正确的音阶
-  const scale = difficulty === 'basic'
-    ? KEY_SCALES[AppState.quiz.currentKey]?.basic || KEY_SCALES.C.basic
-    : KEY_SCALES[AppState.quiz.currentKey]?.extended || KEY_SCALES.C.extended;
-
-  // 强制清除并重新渲染答题区，确保清除旧内容
-  if (AppState.dom.ansArea) {
-    AppState.dom.ansArea.innerHTML = ''; // 清除现有按钮
-    AppState.dom.ansArea.style.display = 'grid';
-    AppState.dom.ansArea.style.opacity = '1';
-  }
-
-  // 渲染新按钮
-  renderFunc(scale, difficulty);
-
-  // 禁用按钮
-  disableButtons();
-
-  // 添加延迟检查和调整，确保渲染完全应用
+  AppState.quiz.pendingDifficultyChange = null;
+  AppState.quiz.pendingRangeChange = null;
+  
+  // 10. 立即重置UI到初始状态
+  resetToWelcomeScreen();
+  syncStatusBarAfterReset();
+  console.log('✅ 复位完成 - 回到初始状态');
+  
+  // 延迟清除复位标志
   setTimeout(() => {
-    // 调整答题区缩放
-    const adjustScaleFunc = AppGlobal.getTool('adjustAnswerAreaScale');
-    adjustScaleFunc?.();
-    
-    // 验证并记录（调试用，可移除）
-    const actualButtons = AppState.dom.ansArea?.querySelectorAll('.key-btn');
-    const expectedCount = difficulty === 'basic' ? 8 : 13;
-    if (actualButtons && actualButtons.length !== expectedCount) {
-      console.error(`❌ 答题区按钮数量错误：预期${expectedCount}个，实际${actualButtons.length}个`);
-    }
-  }, 100);
-
-  // 取消自动播放的勾选
-  const autoNextCheckbox = document.getElementById('autoNextCheckbox');
-  if (autoNextCheckbox) {
-    autoNextCheckbox.checked = false;
-    
-    // 同时禁用时间滑块
-    const timeSlider = document.getElementById('infoDisplayTime');
-    if (timeSlider) {
-      timeSlider.disabled = true;
-    }
-    
-    // 更新时间显示的不透明度
-    const timeDisplay = document.getElementById('timeDisplay');
-    if (timeDisplay) {
-      timeDisplay.style.opacity = '0.5';
-    }
-  }
-
-  // 重置主按钮状态
-  if (AppState.dom.mainBtn) {
-    AppState.dom.mainBtn.textContent = UI_TEXT.INITIAL;
-    updateBigButtonState();
-  }
-
-  // 重置大播放按钮状态
-  const bigPlayBtn = document.getElementById('big-play-btn');
-  if (bigPlayBtn) {
-    bigPlayBtn.classList.remove('disabled');
-    const textEl = bigPlayBtn.querySelector('.big-play-text');
-    if (textEl) textEl.textContent = UI_TEXT.INITIAL;
-  }
-
-  // 重置消息显示
-  if (AppState.dom.msgDisplay) {
-    updateAllMessageDisplays('点击开始练习');
-    AppState.dom.msgDisplay.style.display = 'block';
-  }
-
-  // 重置完整状态
-  resetCompleteExerciseState();
-
-  // 根据自动播放设置决定下一步
-  if (shouldAutoPlayNext()) {
-    startNewQuestionWithCurrentSettings();
-  } else {
-    resetToInitialState();
-  }
-
-  // 显示提示
-  showResetFeedback();
-
-  setTimeout(() => {
-    resetInfo();          // 重置悬浮面板内容
-    updatePitch(null, null); // 再次确保主显示为等待状态
-  }, 100);
-
-  setTimeout(() => {
-    window.dispatchEvent(new CustomEvent('quiz-reset'));
-    // 🔴 修复：额外触发range-changed事件确保音域显示更新
-    const getCurrentRangeKey = AppGlobal.getTool('getCurrentKey');
-    if (getCurrentRangeKey) {
-      window.dispatchEvent(new CustomEvent('range-changed', {
-        detail: { range: getCurrentRangeKey() }
-      }));
-    }
-  }, 150);
-
-  // 最后重置复位标志
-  setTimeout(() => {
+    AppState.audio.shouldStop = false;
     AppState.quiz.fromReset = false;
+    console.log('🔄 复位标志已清除，可以重新开始练习');
   }, 200);
+}
+
+// 复位后同步状态栏
+function syncStatusBarAfterReset() {
+  // 短暂延迟确保DOM已更新
+  setTimeout(() => {
+    // 从左侧面板读取当前设置
+    const activeModeBtn = document.querySelector('.mode-btn.active');
+    const baseMode = activeModeBtn ? activeModeBtn.dataset.mode : 'c';
+    const keySelect = document.getElementById('keySelect');
+    const currentKey = keySelect ? keySelect.value : 'C';
+    const difficultySelect = document.getElementById('difficultySelect');
+    const currentDifficulty = difficultySelect ? difficultySelect.value : 'basic';
+    const activeRangeBtn = document.querySelector('.range-btn.active');
+    const currentRange = activeRangeBtn ? activeRangeBtn.dataset.range : 'low';
+    
+    console.log('🔄 从面板读取的设置:', { 
+      baseMode, currentKey, currentDifficulty, currentRange 
+    });
+    
+    // 更新 AppState 中的设置状态
+    AppState.quiz.questionBaseMode = baseMode;
+    AppState.quiz.currentKey = currentKey;
+    AppState.quiz.currentDifficulty = currentDifficulty;  // 确保难度被更新
+    AppState.quiz.currentRange = currentRange;
+    
+    // 清除所有预选状态
+    AppState.quiz.pendingKeyChange = null;
+    AppState.quiz.pendingBaseModeChange = null;
+    AppState.quiz.pendingDifficultyChange = null;
+    AppState.quiz.pendingRangeChange = null;
+    
+    // 强制触发所有相关事件
+    window.dispatchEvent(new CustomEvent('settings-updated'));
+    window.dispatchEvent(new CustomEvent('base-mode-changed', {
+      detail: { mode: baseMode }
+    }));
+    window.dispatchEvent(new CustomEvent('range-changed', {
+      detail: { range: currentRange }
+    }));
+    
+    // 专门触发难度变化事件
+    window.dispatchEvent(new CustomEvent('difficulty-changed', {
+      detail: { difficulty: currentDifficulty }
+    }));
+    
+    window.dispatchEvent(new CustomEvent('quiz-reset-complete'));
+    
+    console.log('🔄 状态栏已同步:', { 
+      baseMode, 
+      currentKey, 
+      currentDifficulty, 
+      currentRange 
+    });
+  }, 100);
 }
 
 function resetCompleteExerciseState() {
   const hideCards = AppGlobal.getTool('hideInfoCards') || hideInfoCards;
   const resetInfo = AppGlobal.getTool('resetAnswerInfo') || resetAnswerInfo;
   const disableButtons = AppGlobal.getTool('disableAnswerButtons') || disableAnswerButtons;
-
+  const updateRangeFunc = AppGlobal.getTool('updateRange'); 
+  // 重置错误次数
+  resetErrorCount();
   // ========== 统一处理所有待处理设置 ==========
   const pendingChanges = {};
   
@@ -228,7 +236,6 @@ function resetCompleteExerciseState() {
     AppState.quiz.questionBaseMode = AppState.quiz.pendingBaseModeChange;
     pendingChanges.baseMode = AppState.quiz.pendingBaseModeChange;
   } else {
-    // 没有预选时使用当前UI状态
     const activeModeBtn = document.querySelector('.mode-btn.active');
     AppState.quiz.questionBaseMode = activeModeBtn ? activeModeBtn.dataset.mode : 'c';
   }
@@ -238,7 +245,6 @@ function resetCompleteExerciseState() {
     AppState.quiz.currentKey = AppState.quiz.pendingKeyChange;
     pendingChanges.key = AppState.quiz.pendingKeyChange;
   } else {
-    // 没有预选时使用当前UI状态
     const keySelect = document.getElementById('keySelect');
     AppState.quiz.currentKey = keySelect ? keySelect.value : 'C';
   }
@@ -248,26 +254,31 @@ function resetCompleteExerciseState() {
     AppState.quiz.currentDifficulty = AppState.quiz.pendingDifficultyChange;
     pendingChanges.difficulty = AppState.quiz.pendingDifficultyChange;
   } else {
-    // 没有预选时使用当前UI状态
     const difficultySelect = document.getElementById('difficultySelect');
     AppState.quiz.currentDifficulty = difficultySelect ? difficultySelect.value : 'basic';
   }
   
-// 4. 音域 - 按钮组（与基准音模式相同处理方式）
-  if (AppState.quiz.pendingRangeChange) {
-    AppState.quiz.currentRange = AppState.quiz.pendingRangeChange;
-    pendingChanges.range = AppState.quiz.pendingRangeChange;
-  } else {
-    // 没有预选时使用当前UI状态
+// 4. 音域 - 关键修复：确保实际应用音域更改
+let rangeToApply;
+if (AppState.quiz.pendingRangeChange) {
+    rangeToApply = AppState.quiz.pendingRangeChange;
+    pendingChanges.range = rangeToApply;
+    AppState.quiz.currentRange = rangeToApply;
+} else {
     const activeRangeBtn = document.querySelector('.range-btn.active');
-    AppState.quiz.currentRange = activeRangeBtn ? activeRangeBtn.dataset.range : 'low';
-  }
+    rangeToApply = activeRangeBtn ? activeRangeBtn.dataset.range : 'low';
+    AppState.quiz.currentRange = rangeToApply;
+}
 
-  // 统一清除所有待处理状态
-  AppState.quiz.pendingKeyChange = null;
-  AppState.quiz.pendingBaseModeChange = null;
-  AppState.quiz.pendingDifficultyChange = null;
-  AppState.quiz.pendingRangeChange = null;
+// 实际应用音域更改到UI
+if (updateRangeFunc && rangeToApply) {
+    updateRangeFunc(rangeToApply);
+}
+
+// 统一清除所有待处理状态（除了音域）
+AppState.quiz.pendingKeyChange = null;
+AppState.quiz.pendingBaseModeChange = null;
+AppState.quiz.pendingDifficultyChange = null;
   
   // 清理自动下一题定时器
   if (AppState.quiz.autoNextTimer) {
@@ -290,6 +301,10 @@ function resetCompleteExerciseState() {
   AppState.quiz.currentNoteIdx = -1;
   AppState.quiz.hasAnsweredCurrent = false;
   AppState.quiz.attemptCount = 0;
+  
+  // 更新复位按钮状态
+  const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+  updateResetButtonState?.();
   
   // 隐藏信息卡片
   if (hideCards) {
@@ -341,7 +356,22 @@ function startNewQuestionWithCurrentSettings() {
 }
 
 function resetToInitialState() {
-  // 空函数，保持原有结构
+  // 非自动播放模式下的特定重置
+  const message = '已重置，点击播放开始练习';
+  updateAllMessageDisplays(message);
+  
+  // 确保大播放按钮状态正确
+  const bigPlayBtn = document.getElementById('big-play-btn');
+  if (bigPlayBtn) {
+    bigPlayBtn.classList.remove('disabled', 'playing');
+    const textEl = bigPlayBtn.querySelector('.big-play-text');
+    if (textEl) textEl.textContent = UI_TEXT.INITIAL;
+  }
+  
+  // 更新主按钮状态
+  if (window.updateBigButtonState) {
+    window.updateBigButtonState();
+  }
 }
 
 function showResetFeedback() {
@@ -362,5 +392,6 @@ export {
     resetAnswerUI,
     resetToWelcomeScreen,
     handleResetQuestion,
-    resetCompleteExerciseState
+    resetCompleteExerciseState,
+    syncStatusBarAfterReset
 };

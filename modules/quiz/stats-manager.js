@@ -1,5 +1,5 @@
 import { AppState } from '../core/state.js';
-
+console.log('📊 统计管理器加载中...');
 class StatsManager {
   constructor() {
 
@@ -56,7 +56,7 @@ class StatsManager {
     this.loadStats();
     this.checkNewDay();
     this.initializeStreakSystem();
-
+    console.log('📊 StatsManager 初始化完成', this.getStats());
   }
 
 /**
@@ -109,6 +109,7 @@ class StatsManager {
    * 重置当前题目状态
    */
   resetCurrentQuestion() {
+    console.log('🔄 resetCurrentQuestion 被调用');
     this.stats.currentQuestion = {
       started: false,
       answered: false,
@@ -119,24 +120,34 @@ class StatsManager {
   /**
    * 记录新题目开始
    */
-  recordNewQuestion() {
+   recordNewQuestion() {
     this.checkNewDay();
-    
-    // 只有在真正开始新题目时（不是重放）才记录
-    if (!AppState.quiz.hasStarted || AppState.quiz.fromReset) {
-      // 只标记题目开始，不增加计数
-      this.stats.currentQuestion.started = true;
-      this.stats.currentQuestion.answered = false;
-      this.stats.currentQuestion.firstTry = true;
-    }
-    
+
+    // ✅ 强制初始化当前题目状态（不管之前是什么）
+    this.stats.currentQuestion = {
+        started: true,
+        answered: false,
+        firstTry: true
+    };
+
+    // ✅ 真正记录“新题”计数
+    this.saveStats();
     return this.getStats();
-  }
+}
 
   /**
    * 记录题目回答 - 修复版本
    */
    recordAnswer(isCorrect, isFirstAttempt, userAnswerNote = null, baseMode = 'c', currentKey = 'C', difficulty = 'basic') {
+    console.log('📊 recordAnswer 被调用', {
+      isCorrect,
+      isFirstAttempt,
+      userAnswerNote,
+      baseMode,
+      currentKey,
+      difficulty,
+      currentState: this.stats.currentQuestion
+    });
     if (!this.stats.currentQuestion.started) return this.getStats();
     if (this.stats.currentQuestion.answered) return this.getStats();
     
@@ -144,6 +155,7 @@ class StatsManager {
     this.stats.today.questions++;
     this.stats.history.totalQuestions++;
     this.stats.currentQuestion.answered = true;
+    this.stats.currentQuestion.started = true;
     
     // 所有题目都更新分类统计，但区分正确/错误
     this.updateCategories(baseMode, currentKey, difficulty, userAnswerNote, isCorrect);
@@ -155,15 +167,18 @@ class StatsManager {
             this.stats.history.totalCorrect++;
             this.stats.streaks.current++;
             this.stats.streaks.max = Math.max(this.stats.streaks.max, this.stats.streaks.current);
-        } else {
+            console.log('✅ 记录一次性答对');
+          } else {
             // 重试答对
             this.stats.today.retryCorrect++;
             this.stats.streaks.current = 0;
+            console.log('🔄 记录重试答对');
         }
     } else {
         // 答错
         this.stats.today.wrongAnswers++;
         this.stats.streaks.current = 0;
+        console.log('❌ 记录答错');
     }
     
     this.stats.currentQuestion.firstTry = false;
@@ -174,10 +189,12 @@ class StatsManager {
     this.saveStats();
     this.updateDisplay();
     this.updateBestAccuracy();
+
     // 答题后触发移动端同步
 if (window.mobilePanelManager) {
     window.mobilePanelManager.syncAllData();
 }
+    console.log('📊 记录完成后的统计:', this.getStats());
     return this.getStats();
 }
 

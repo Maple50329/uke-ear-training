@@ -1,6 +1,7 @@
 import { ranges } from '../core/config.js';
 import { AppState } from '../core/state.js';
 import { showKeyChangeToast } from '../utils/displayHelpers.js';
+import AppGlobal from '../core/app.js';
 
 // 更新音域
 export function updateRange(key) {
@@ -9,9 +10,12 @@ export function updateRange(key) {
         return;
     }
     
+    // 立即更新 AppState，确保播放时使用正确的音域
+    AppState.quiz.currentRange = key;
+    
     // 如果在播放中，只保存待处理更改，不立即应用
     if (AppState.quiz.locked) {
-        AppState.quiz.pendingRangeChange = key;  // 使用 AppState
+        AppState.quiz.pendingRangeChange = key;
         showKeyChangeToast('音域更改将在下一题生效');
         syncUIPreview(key);
         return;
@@ -19,7 +23,7 @@ export function updateRange(key) {
     
     // 答对后与其他设置保持一致，保存为待处理更改
     if (AppState.quiz.answered) {
-        AppState.quiz.pendingRangeChange = key;  // 使用 AppState
+        AppState.quiz.pendingRangeChange = key;
         showKeyChangeToast('音域更改将在下一题生效');
         syncUIPreview(key);
         return;
@@ -27,7 +31,7 @@ export function updateRange(key) {
     
     // 如果已经开始但未完成答题，提示下一题生效
     if (AppState.quiz.hasStarted && !AppState.quiz.answered) {
-        AppState.quiz.pendingRangeChange = key;  // 使用 AppState
+        AppState.quiz.pendingRangeChange = key;
         showKeyChangeToast('音域更改将在下一题生效');
         syncUIPreview(key);
         return;
@@ -48,10 +52,17 @@ function applyRangeChange(key) {
     // 更新UI状态
     syncUIPreview(key);
     
+    // 重新初始化答题区以确保使用正确的音域
+    const initAnswerArea = AppGlobal.getTool('initAnswerArea');
+    if (initAnswerArea) {
+        initAnswerArea();
+    }
+    
     // 确保触发范围变化事件
     window.dispatchEvent(new CustomEvent('range-changed', {
         detail: { range: key }
     }));
+
 }
 
 // 检查并应用待处理的音域更改
@@ -65,17 +76,8 @@ export function applyPendingRangeChange() {
 
 // 同步UI预览
 function syncUIPreview(key) {
-    // 更新单选按钮状态
-    const radio = document.querySelector(`input[name="range"][value="${key}"]`);
-    if (radio) {
-        radio.checked = true;
-    }
-    
     // 同步左侧面板按钮状态
     syncLeftPanelButtons(key);
-    
-    // 同步设置面板按钮状态（如果存在）
-    syncSettingsPanelButtons(key);
 }
 
 // 获取当前音域键
@@ -86,7 +88,14 @@ export function getCurrentKey() {
 // 获取当前音域范围数组
 export function getCurrentRange() {
     const key = AppState.quiz.currentRange || 'low';
-    return ranges[key] || ranges.low;
+    
+    // 确保 ranges[key] 存在，否则返回默认音域
+    if (ranges[key]) {
+        return ranges[key];
+    } else {
+        console.warn(`音域 ${key} 未找到，使用默认音域 low`);
+        return ranges.low;
+    }
 }
 
 // 同步左侧面板按钮状态
@@ -97,61 +106,40 @@ function syncLeftPanelButtons(activeKey) {
     });
 }
 
-// 同步设置面板按钮状态
-function syncSettingsPanelButtons(activeKey) {
-    const settingsBtns = document.querySelectorAll('#settingsPanel .rangeBtn');
-    settingsBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.range === activeKey);
-    });
-}
-
 // 绑定左侧面板音域按钮
 export function bindLeftPanelRangeButtons() {
     const leftBtns = document.querySelectorAll('.left-panel .range-btn[data-range]');
     
-    // 先移除所有现有的事件监听器
+    console.log('找到音域按钮数量:', leftBtns.length); // 调试信息
+
     leftBtns.forEach(btn => {
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
+        // 移除所有现有的事件监听器（避免重复绑定）
+        btn.replaceWith(btn.cloneNode(true));
     });
-    
-    // 重新获取按钮并绑定事件
+
+    // 重新获取按钮引用
     const freshBtns = document.querySelectorAll('.left-panel .range-btn[data-range]');
+    
     freshBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             const range = this.dataset.range;
+            console.log('音域按钮点击:', range); // 调试信息
+            
             if (!range) return;
+            
+            // 更新按钮 active 状态
+            freshBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 调用更新函数
             updateRange(range);
         });
     });
 }
 
-// 绑定设置面板音域按钮
-export function bindSettingsPanelRangeButtons() {
-    // 使用事件委托处理设置面板中的按钮点击
-    document.addEventListener('click', function(e) {
-        // 判断点击的是否是设置面板里的音域按钮
-        if (e.target.classList.contains('rangeBtn') && e.target.closest('#settingsPanel')) {
-            const range = e.target.dataset.range;
-            if (!range) return;
-
-            updateRange(range);
-
-            // 同步左侧面板按钮状态
-            document.querySelectorAll('.left-panel .range-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.range === range);
-            });
-
-            // 同步设置面板按钮状态
-            const rangeBtnGroup = e.target.closest('#rangeBtnGroup');
-            if (rangeBtnGroup) {
-                rangeBtnGroup.querySelectorAll('.rangeBtn').forEach(btn => {
-                    btn.classList.toggle('active', btn === e.target);
-                });
-            }
-        }
-    });
-}
 
 // 初始化音域系统
 export function initRangeSystem() {
@@ -167,5 +155,4 @@ export function initRangeSystem() {
     updateRange(AppState.quiz.currentRange);
     // 绑定各种音域按钮
     bindLeftPanelRangeButtons();
-    bindSettingsPanelRangeButtons();
 }

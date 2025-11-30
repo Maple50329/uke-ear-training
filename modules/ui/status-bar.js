@@ -11,7 +11,9 @@ const update = async () => {
   const base = baseMode === 'c' ? 'Do' : 'La';
   
   const key  = quiz.currentKey ?? 'C';
-  const diff = quiz.currentDifficulty ?? 'basic';
+  const diff = quiz.currentDifficulty ?? 'basic';  // 检查这个值
+  
+  console.log('🔍 状态栏更新 - 当前难度:', diff);
 
   let currentRangeArray = [];
   try {
@@ -42,8 +44,6 @@ const update = async () => {
     <span class="sb-item">难度：${diff === 'basic' ? '仅基本音级' : '含变化音级'}</span>
     <span class="sb-sep"></span>
     <span class="sb-item">音域：${range}</span>
-    <span class="sb-sep"></span>
-    <span class="sb-item">${play}</span>
   `;
 };
 
@@ -53,7 +53,8 @@ const events = [
   'settings-updated',
   'base-mode-changed',
   'quiz-reset',
-  'initial-state'
+  'initial-state',
+  'quiz-reset-complete'
 ];
 events.forEach(e => window.addEventListener(e, () => requestAnimationFrame(update)));
 
@@ -128,29 +129,6 @@ function setupPanelChangeListeners() {
         }, 50);
       }
     });
-  });
-}
-
-// 音频状态管理函数
-function setupAudioStateManagement() {
-  // 监听音频状态变化事件
-  window.addEventListener('audio-state-changed', (event) => {
-    AppState.audio.isPlaying = event.detail.isPlaying;
-    console.log('🔊 音频状态变化:', AppState.audio.isPlaying ? '播放中' : '就绪', '原因:', event.detail.action);
-    requestAnimationFrame(update);
-  });
-  
-  // 监听播放/停止相关的其他事件，确保状态同步
-  window.addEventListener('quiz-reset', () => {
-    // 复位时确保音频状态为停止
-    AppState.audio.isPlaying = false;
-    setTimeout(() => requestAnimationFrame(update), 150);
-  });
-  
-  window.addEventListener('answer-correct', () => {
-    // 答对时确保音频状态为停止
-    AppState.audio.isPlaying = false;
-    // 这里不调用 update()，保持状态栏不变
   });
 }
 
@@ -275,7 +253,7 @@ export function initStatusBar() {
   setupRangeChangeListener();
   checkBaseModeChange();
   setupStatusBarEventListeners();
-  setupAudioStateManagement();
+
   update();
   
   // 设置初始状态
@@ -294,7 +272,6 @@ function setupStatusBarEventListeners() {
   ];
   
   newEvents.forEach(e => window.addEventListener(e, () => {
-    console.log(`状态栏: 收到 ${e} 事件，更新显示`);
     requestAnimationFrame(update);
   }));
   

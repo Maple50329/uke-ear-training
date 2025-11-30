@@ -232,18 +232,6 @@
 }
 
 
-
-/* 确保模态框在标题栏之上 */
-#rangeModal,
-#settingsModal {
-    z-index: 1001;
-}
-
-#rangeMask,
-#settingsMask {
-    z-index: 1000;
-}
-
 /* 选择框样式 */
 select {
     width: 100%;
@@ -272,6 +260,7 @@ select {
     background: var(--btn-sec-h);
 }
 </style>
+<base target="_blank">
 </head>
 <body>
 <!-- 浮动面板 -->
@@ -573,6 +562,12 @@ select {
             <input type="checkbox" id="enableScalePlayback" checked>
             <label for="enableScalePlayback">先播放音阶</label>
         </div>
+        <div class="checkbox-option">
+            <input type="checkbox" id="enableErrorLimit">
+            <label for="enableErrorLimit">可错误次数</label>
+            <input type="range" id="errorLimitSlider" min="0" max="3" value="1" class="time-slider" disabled>
+            <span id="errorLimitDisplay" style="opacity: 0.5; color: var(--text);">1次</span>
+        </div>
     </div>
     <div id="customSamplingSection" style="display:none;">
         <div class="panel-section">
@@ -670,7 +665,7 @@ select {
         <div class="history-list" id="historyList">
             <div class="history-empty">暂无练习记录，答对题目后将会出现在这里</div>
         </div>
-        <!-- 滑动显示的高级清空 -->
+
         <div class="history-actions">
             <div class="history-stats">
                 <span id="historyCount">0</span> 条记录
@@ -681,29 +676,6 @@ select {
         </div>
     </div>
 </aside>
-</div>
-<!-- 原有的模态框和遮罩 -->
-<div id="rangeModal">
-    <h3 style="margin:0 0 12px;font-size:16px;text-align:center">选择音域</h3>
-    <label style="display:block;margin:6px 0;font-size:15px"><input type="radio" name="range" value="low" checked> C4 – B4</label>
-    <label style="display:block;margin:6px 0;font-size:15px"><input type="radio" name="range" value="mid"> C5 – B5</label>
-    <label style="display:block;margin:6px 0;font-size:15px"><input type="radio" name="range" value="all"> C4 – B5</label>
-    <div style="text-align:center;margin-top:14px"><button id="rangeOkBtn" style="padding:4px 14px;font-size:14px">确定</button></div>
-</div>
-
-<div id="rangeMask"></div>
-
-<div id="settingsMask"></div>
-
-<div id="settingsModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1002;">
-    <div id="settingsBox" style="width:770px;height:630px;display:flex;background:var(--card);border-radius:24px;box-shadow:0 20px 60px var(--shadow);overflow:hidden;">
-        <aside id="settingsMenu" style="flex:0 0 200px;border-right:1px solid var(--btn-sec);padding:30px 20px;">
-            <button class="menuBtn active" data-panel="general">通用</button>
-            <button class="menuBtn" data-panel="sound">音色</button>
-            <button class="menuBtn" data-panel="about">关于</button>
-        </aside>
-        <section id="settingsPanel" style="flex:1;padding:30px;"></section>
-    </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -727,27 +699,6 @@ select {
             <div class="mobile-icon">📊</div>
             <div class="mobile-label">统计与历史</div>
           </button>
-    </div>
-    
-    <!-- 属性信息栏 -->
-    <div class="mobile-properties-panel">
-      <div class="simple-properties">
-        <div class="property-items">
-          <div class="property-item-simple">
-            <span class="property-label-simple">音高：</span>
-            <span class="property-value-simple" id="simplePitch">--</span>
-          </div>
-          <div class="property-item-simple">
-            <span class="property-label-simple">基准音：</span>
-            <span class="property-value-simple" id="simpleBaseNote">C4</span>
-          </div>
-          <div class="property-item-simple">
-            <span class="property-label-simple">音程度数：</span>
-            <span class="property-value-simple" id="simpleInterval">--</span>
-          </div>
-        </div>
-        <button class="expand-detail-btn">详细</button>
-      </div>
     </div>
   </div>
 
@@ -774,7 +725,7 @@ select {
       <button class="panel-close">✕</button>
     </div>
     
-    <!-- 新增：标签页导航 -->
+    <!-- 标签页导航 -->
     <div class="mobile-tab-nav">
       <button class="mobile-tab-btn active" data-tab="statsTab">练习统计</button>
       <button class="mobile-tab-btn" data-tab="historyTab">历史记录</button>

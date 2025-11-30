@@ -159,6 +159,26 @@ body::before {
 * {
   font-family: var(--font-system);
 }
+
+/* 1.7 解决历史记录颜色被覆盖问题 */
+/* 错误答案 - 始终保持红色，不被 hover/active 覆盖 */
+.key-btn.miss {
+  background: #f87171 !important;  /* 亮红 */
+  color: #fff !important;
+}
+
+/* 正确答案 - 绿色 */
+.key-btn.hit {
+  background: #4ade80 !important;
+  color: #fff !important;
+}
+@media (hover: none), (pointer: coarse) {
+  .key-btn:hover,
+  .key-btn:active {
+    background: inherit !important;
+    color: inherit !important;
+  }
+}
 /* =========================
    2. 布局相关（body、容器、中央区域、响应式）
 ========================= */
@@ -418,41 +438,6 @@ button:disabled,
   cursor: not-allowed;
 }
 
-/* 3.7 菜单按钮 */
-.menuBtn {
-  width: 100%;
-  margin: 0;
-  padding: 12px 16px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background .2s;
-}
-
-.menuBtn:hover {
-  background: var(--btn-sec);
-}
-
-.menuBtn.active {
-  background: var(--btn-sec);
-  color: var(--text);
-  position: relative;
-}
-
-.menuBtn.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--accent-color);
-}
-
 /* 复位按钮 */
 #resetQuestionBtn {
   font-size: 14px; /* 调整图标大小 */
@@ -585,8 +570,10 @@ body.dark .key-btn:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* 答对效果 */
-.key-btn.hit {
+/* 答对效果 - 修复优先级 */
+.key-btn.hit,
+.key-btn.hit:hover,
+.key-btn.hit:active {
   background: linear-gradient(145deg, 
     rgba(52, 211, 153, 1), 
     rgba(16, 185, 129, 0.9)) !important;
@@ -594,10 +581,15 @@ body.dark .key-btn:hover {
     0 0 30px rgba(52, 211, 153, 0.8),
     0 0 20px rgba(255, 255, 255, 0.4) inset !important;
   color: white !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+  cursor: default !important;
+  pointer-events: none !important;
 }
 
-.key-btn.miss {
+/* 答错效果 - 修复优先级 */
+.key-btn.miss,
+.key-btn.miss:hover,
+.key-btn.miss:active {
   background: linear-gradient(145deg, 
     rgba(248, 113, 113, 1), 
     rgba(239, 68, 68, 0.9)) !important;
@@ -605,16 +597,18 @@ body.dark .key-btn:hover {
     0 0 30px rgba(248, 113, 113, 0.8),
     0 0 20px rgba(255, 255, 255, 0.4) inset !important;
   color: white !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+  cursor: default !important;
+  pointer-events: none !important;
 }
 
 .key-btn.hit, .key-btn.miss {
-  transform: scale(1); /* 可以放大更多 */
-  transform-origin: center center; /* 确保从中心缩放 */
-  z-index: 100; /* 提高层级确保显示在最前 */
-  position: relative; /* 确保z-index生效 */
+  transform: scale(1.05);
+  transform-origin: center center;
+  z-index: 100;
+  position: relative;
 
-   /* 添加淡出效果 */
+  /* 添加淡出效果 */
   animation: scaleFade 0.3s ease-out;
 }
 
@@ -624,7 +618,7 @@ body.dark .key-btn:hover {
     opacity: 0.7;
   }
   50% {
-    transform: scale(1.1); /* 放大程度可以调整 */
+    transform: scale(1.1);
     opacity: 1;
   }
   100% {
@@ -632,33 +626,17 @@ body.dark .key-btn:hover {
     opacity: 1;
   }
 }
-/* 禁用状态 */
-.key-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed !important;
-    transform: none;
-}
+
 /* 出题过程中降低答题区不透明度 */
 #ans.generating {
   opacity: 0.65 !important;
-  filter: blur(1px); /* 可选：添加轻微模糊效果 */
+  filter: blur(1px);
   transition: opacity 0.3s ease, filter 0.3s ease;
 }
 
 /* 确保答题按钮也降低不透明度 */
 #ans.generating .key-btn {
   opacity: 0.8 !important;
-}
-
-/* 禁用状态下的答题区 */
-#ans.disabled {
-  opacity: 0.7;
-  filter: grayscale(0.3); 
-}
-
-#ans.enabled {
-  opacity: 1;
-  filter: none;
 }
 
 /* 4.4 动画效果及唱名显示形式 */
@@ -690,6 +668,58 @@ body.dark .key-btn:hover {
 #ans.notes-13 {
     grid-template-columns: repeat(7, minmax(0, 1fr)) !important; /* 第一行7列 */
     grid-auto-rows: 1fr !important; /* 行高自动适应 */
+}
+
+/* 4.6 答题区状态统一管理 */
+/* 答题区禁用状态 - 统一CSS控制 */
+.ans-area.disabled {
+  pointer-events: none;
+  opacity: 1;
+  filter: grayscale(0.3);
+}
+
+.ans-area.disabled .key-btn {
+  opacity: 1;
+  cursor: not-allowed !important;
+  transform: none !important;
+  pointer-events: none !important;
+  filter: grayscale(0.3);
+}
+
+/* 按钮禁用状态 - 统一CSS控制 */
+.key-btn:disabled,
+.key-btn.disabled {
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  pointer-events: none !important;
+  filter: grayscale(0.3) !important;
+}
+
+/* 启用状态的按钮样式 */
+.ans-area:not(.disabled) .key-btn:not(:disabled):not(.disabled) {
+  opacity: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: none;
+  transform: none;
+}
+
+/* 禁用状态的悬停效果 */
+.ans-area.disabled .key-btn:hover,
+.key-btn:disabled:hover,
+.key-btn.disabled:hover {
+  background: var(--key-btn-bg) !important;
+  color: var(--key-btn-color) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 启用状态的悬停效果 */
+.ans-area:not(.disabled) .key-btn:not(:disabled):not(.disabled):hover {
+  background: var(--key-btn-hover-bg) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* 4.7 答题区视觉反馈系统 */
@@ -782,33 +812,6 @@ body.dark #ans .key-btn.target-playing:hover {
     background: var(--key-btn-bg) !important;
     box-shadow: none !important;
   }
-}
-
-#ans.disabled {
-  opacity: 0.7;
-  filter: grayscale(0.3);
-}
-
-#ans.disabled .key-btn {
-  cursor: not-allowed !important;
-}
-
-.key-btn:disabled:hover {
-  background: var(--key-btn-bg) !important; /* 保持原背景，不变化 */
-  color: var(--key-btn-color) !important;
-  transform: none; /* 移除变换效果 */
-  box-shadow: none; /* 移除阴影效果 */
-}
-
-#ans.enabled .key-btn {
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-#ans.enabled {
-  opacity: 1;
-  filter: none;
-  pointer-events: auto;
 }
 
 #ans.playing {
@@ -973,6 +976,8 @@ body.dark .right-panel .stat-value {
 }
 
 /* 5.3 历史记录 */
+
+
 /* 5.4 音量控制样式及滑块样式，含移动端适配 */
 .volume-control {
   position: relative;
@@ -1108,36 +1113,6 @@ body.dark .right-panel .stat-value {
 /* =========================
    6. 设置面板、控制栏、表单控件相关
 ========================= */
-
-/* 6.1 设置面板及弹窗 */
-#settingsMenu {
-  background: var(--card) !important;
-  color: var(--text) !important;
-  border-right: 1px solid var(--btn-sec);
-  padding: 30px 20px;
-}
-
-#settingsModal {
-  transition: opacity .35s ease;
-  
-}
-
-#settingsBox {
-  transition: transform .35s cubic-bezier(.25, .8, .25, 1);
-}
-
-#settingsPanel {
-  color: var(--text); 
-}
-
-#settingsPanel h2 {
-  color: var(--text);
-  margin-top: 0;
-}
-
-#settingsPanel p {
-  color: var(--sub);
-}
 /* 6.2 统一按钮组 */
 /* ===== 音域按钮组样式 ===== */
 .range-buttons {
@@ -1699,8 +1674,16 @@ body.dark input[type="checkbox"][id="enableScalePlayback"]:checked {
               0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* ===== 时间显示文字样式 ===== */
+/* ===== 自动下一音时间滑块文字样式 ===== */
 #timeDisplay {
+  transition: opacity 0.3s ease;
+  font-size: 14px;
+  color: var(--text);
+  min-width: 30px;
+  display: inline-block;
+  text-align: center;
+}
+#errorLimitDisplay {
   transition: opacity 0.3s ease;
   font-size: 14px;
   color: var(--text);
@@ -2326,60 +2309,6 @@ body.dark .big-play-button:hover {
   font-size: 14px;
   color: var(--sub) !important;
 
-}
-
-/* 模态框样式 */
-#rangeModal {
-  display: none;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 220px;
-  background: var(--card) !important; /* ← 使用CSS变量 */
-  border: 1px solid var(--btn-sec) !important; /* ← 使用CSS变量 */
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 12px var(--shadow);
-  z-index: 999;
-}
-
-#rangeModal h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  text-align: center;
-  color: var(--text);
-}
-
-#rangeModal label {
-  display: block;
-  margin: 6px 0;
-  font-size: 15px;
-  color: var(--text); /* ← 使用CSS变量 */
-}
-
-/* 遮罩层样式 */
-#rangeMask, #settingsMask {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35); /* 这个可以保留，遮罩不需要主题色 */
-  z-index: 998;
-}
-
-#settingsMask {
-  z-index: 1001;
-}
-
-/* 确定按钮样式 */
-#rangeOkBtn {
-  padding: 4px 14px;
-  font-size: 14px;
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 /* ===== 桌面底部状态栏 ===== */

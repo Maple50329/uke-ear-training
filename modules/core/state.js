@@ -56,7 +56,12 @@ export const AppState = {
     pendingBaseModeChange: null,
     pendingRangeChange: null,
     currentRange: 'low',
-    originalKey: 'C'
+    originalKey: 'C',
+    errorLimitEnabled: false,
+    allowedErrorCount: 1, 
+    currentErrorCount: 0,
+    maxAttempts: null,
+    answerRevealed: false
   },
   
   // UI 状态

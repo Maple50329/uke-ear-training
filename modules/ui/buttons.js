@@ -11,6 +11,14 @@ function updateBigButtonState() {
     
     if (!bigPlayBtn || !startBtn) return;
     
+    // 如果处于复位状态，强制显示初始状态
+    if (AppState.quiz.fromReset) {
+      bigPlayBtn.classList.remove('disabled');
+      bigPlayIcon.className = 'big-play-icon icon-play';
+      if (statusTooltip) statusTooltip.textContent = '播放题目';
+      return;
+  }
+
     // 同步禁用状态
     if (AppState.quiz.locked) {
       bigPlayBtn.classList.add('disabled');
@@ -52,15 +60,26 @@ function updateBigButtonState() {
 
 // 更新复位按钮状态
 function updateResetButtonState() {
-    const resetBtn = document.getElementById('resetQuestionBtn');
-    if (!resetBtn) return;
-    
-    resetBtn.disabled = AppState.quiz.locked;
-    if (resetBtn.disabled) {
+  const resetBtn = document.getElementById('resetQuestionBtn');
+  if (!resetBtn) return;
+  
+  // 复位状态下禁用复位按钮
+  if (AppState.quiz.fromReset) {
+      resetBtn.disabled = true;
       resetBtn.classList.add('disabled');
-    } else {
+      return;
+  }
+  
+  // 复位按钮启用条件：已经开始播放但尚未答题
+  const shouldEnable = AppState.quiz.hasStarted && !AppState.quiz.answered;
+  
+  resetBtn.disabled = !shouldEnable;
+  
+  if (resetBtn.disabled) {
+      resetBtn.classList.add('disabled');
+  } else {
       resetBtn.classList.remove('disabled');
-    }
+  }
 }
 
 // 初始化大播放按钮
@@ -89,20 +108,20 @@ function initResetButton() {
     return;
   }
   
-  resetBtn.disabled = false;
+  // 确保初始状态正确
+  updateResetButtonState();
 
   resetBtn.addEventListener('click', () => {
     // 使用工具箱获取复位处理函数
     const resetHandler = AppGlobal.getTool('handleResetQuestion');
-    if (resetHandler) {
-      resetHandler();
+    if (resetHandler) { 
+      resetHandler(); 
     } else {
-      // 备用方案：直接导入调用
-      import('./reset-manager.js').then(module => {
-        module.handleResetQuestion();
-      }).catch(error => {
-        console.error('复位处理失败:', error);
-      });
+      console.error('复位处理函数未找到');
+      // 备用方案：直接调用全局函数
+      if (window.handleResetQuestion) {
+        window.handleResetQuestion();
+      }
     }
   });
   
@@ -111,8 +130,10 @@ function initResetButton() {
       e.preventDefault();
       if (!resetBtn.disabled) {
         const resetHandler = AppGlobal.getTool('handleResetQuestion');
-        if (resetHandler) {
+        if (resetHandler) { 
           resetHandler();
+        } else if (window.handleResetQuestion) {
+          window.handleResetQuestion();
         }
       }
     }

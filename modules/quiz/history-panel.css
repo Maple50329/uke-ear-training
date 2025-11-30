@@ -101,9 +101,11 @@
 
 /* 选中状态 - 整个项边框高亮 */
 .history-item.selected {
-  border: 2px solid var(--accent-color);
-  background: var(--card);
-  transform: translateY(-1px);
+  border-color: rgba(var(--accent-rgb), 0.7);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(var(--accent-rgb), 0.5);
+  transform: translateY(-1px) scale(1.01);
 }
 
 /* 三栏布局 */
@@ -258,6 +260,9 @@
   transition: all 0.3s ease;
   margin: 0;
   padding: 0;
+  display: flex;               /* ✅ 垂直居中基准音/目标音 */
+  align-items: center;
+  justify-content: center;
 }
 
 .key-info {
@@ -268,6 +273,68 @@
   line-height: 1.2;
   margin: 0;
   padding: 0;
+  display: inline-flex;         /* ✅ 调性 + 徽标一行水平居中 */
+  align-items: center;
+  justify-content: center;
+  gap: 6px;                     /* 调性文字和徽标之间留一点间距 */
+}
+
+/* 调性文字本身不换行，防止被徽标挤掉 */
+.key-text {
+  white-space: nowrap;
+}
+
+/* 首击正确徽标 */
+.history-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.history-badge.first-try {
+  background: rgba(34, 197, 94, 0.10);      /* 绿色淡底 */
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.4);
+}
+
+/* 整条首击记录稍微高亮一点（可选，不喜欢可以删掉这一段） */
+.history-item.first-try {
+  border-left: 4px solid #16a34a;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .history-item.first-try {
+    background: linear-gradient(
+      90deg,
+      rgba(34, 197, 94, 0.25),
+      rgba(34, 197, 94, 0.10),
+      transparent
+    );
+  }
+
+  .history-item.multi-try {
+    background: linear-gradient(
+      90deg,
+      rgba(249, 115, 22, 0.26),
+      rgba(249, 115, 22, 0.12),
+      transparent
+    );
+  }
+
+  .history-item.system-reveal {
+    background: linear-gradient(
+      90deg,
+      rgba(248, 113, 113, 0.3),
+      rgba(248, 113, 113, 0.14),
+      transparent
+    );
+  }
 }
 
 /* 播放时的文字效果 */
@@ -301,6 +368,87 @@
 
 .history-section-middle::after {
   right: -5px;
+}
+
+/* ============================
+   历史记录 - 三种表现类型配色
+   first-try      🟩 首击正确
+   multi-try      🟧 多次尝试后答对
+   system-reveal  🟥 系统揭晓
+============================= */
+
+.history-item.first-try,
+.history-item.multi-try,
+.history-item.system-reveal {
+  border-left: 4px solid transparent;
+  padding-left: 8px;
+}
+
+/* 🟩 首击正确：偏薄荷的绿 */
+.history-item.first-try {
+  border-left-color: #4ade80; /* tailwind 的那种嫩绿 */
+  background: linear-gradient(
+    90deg,
+    rgba(34, 197, 94, 0.15),
+    rgba(34, 197, 94, 0.05),
+    transparent
+  );
+}
+
+/* 🟧 多次后正确：偏琥珀橙 */
+.history-item.multi-try {
+  border-left-color: #fb923c;
+  background: linear-gradient(
+    90deg,
+    rgba(249, 115, 22, 0.16),
+    rgba(249, 115, 22, 0.06),
+    transparent
+  );
+}
+
+/* 🟥 系统揭晓：偏珊瑚红 */
+.history-item.system-reveal {
+  border-left-color: #f97373;
+  background: linear-gradient(
+    90deg,
+    rgba(248, 113, 113, 0.18),
+    rgba(248, 113, 113, 0.07),
+    transparent
+  );
+}
+
+
+/* 深色模式稍微加点亮度 */
+body.dark .history-item.first-try {
+  background: rgba(16, 185, 129, 0.12);
+}
+body.dark .history-item.multi-try {
+  background: rgba(249, 115, 22, 0.12);
+}
+body.dark .history-item.system-reveal {
+  background: rgba(220, 38, 38, 0.12);
+}
+
+/* ============================
+   首击正确徽标样式
+============================ */
+.history-badge.first-try-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  background: rgba(34, 197, 94, 0.15);   /* 淡绿色底 */
+  color: #16a34a;                        /* 字体绿色 */
+  border: 1px solid rgba(22, 163, 74, 0.35);
+}
+
+/* 暗色模式稍亮一点 */
+body.dark .history-badge.first-try-badge {
+  background: rgba(34, 197, 94, 0.25);
 }
 
 /* 播放指示器图标 */
@@ -520,3 +668,4 @@
     border-color: var(--accent-color);
   }
 }
+

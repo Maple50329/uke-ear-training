@@ -121,19 +121,17 @@ export function updateAnswerAreaState() {
 // 修改现有的禁用函数
 export function disableAnswerButtons() {
   if (!AppState.dom.ansArea) {
-      // 静默返回，不打印警告
       return;
   }
   
   const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
   if (buttons.length === 0) {
-      // 静默返回，按钮尚未渲染是正常情况
       return;
   }
   
   buttons.forEach(btn => {
-      btn.disabled = true;
-      btn.classList.add('disabled');
+      btn.disabled = true; // 只设置属性
+      btn.classList.add('disabled'); // 只设置类
   });
   
   // 添加答题区禁用样式
@@ -153,12 +151,24 @@ export function enableAnswerButtons() {
   }
   
   buttons.forEach(btn => {
+      // 只设置属性和类，不设置内联样式
       btn.disabled = false;
       btn.classList.remove('disabled');
+      
+      // 清除所有可能的内联样式，让CSS完全控制
+      btn.style.opacity = '';
+      btn.style.filter = '';
+      btn.style.pointerEvents = '';
+      btn.style.cursor = '';
+      btn.style.transform = '';
   });
   
   // 移除答题区禁用样式
   AppState.dom.ansArea.classList.remove('disabled');
+  
+  // 清除答题区的内联样式
+  AppState.dom.ansArea.style.opacity = '';
+  AppState.dom.ansArea.style.pointerEvents = '';
 }
 
 export function syncButtonStates() {
@@ -312,14 +322,14 @@ export function showToast(message, duration = 2000) {
   }
 }
 
-export function updateAllMessageDisplays(text) {
-  // 更新桌面端消息显示
-  if (AppState.dom.msgDisplay) {
-    AppState.dom.msgDisplay.textContent = text;
-  }
+export function updateAllMessageDisplays(message) {
+  // 更新所有消息显示的函数
+  const msgDisplay = document.getElementById('msg');
+  const mobileDescText = document.getElementById('mobileDescText');
   
-  // 更新移动端描述信息栏
-  updateMobileDescription(text);
+  if (msgDisplay) msgDisplay.textContent = message;
+  if (mobileDescText) mobileDescText.textContent = message;
+  console.log('消息更新:', message);
 }
 
 export function updateMobileDescription(text) {

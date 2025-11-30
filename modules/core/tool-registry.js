@@ -3,7 +3,6 @@ import AppGlobal from './app.js';
 // 懒加载工具映射表
 const LAZY_TOOLS = {
   // ==================== UI 反馈组件 ====================
-  'showWelcomeOverlays': () => import('../ui/feedback.js').then(m => m.showWelcomeOverlays),
   'hideAllWelcomeOverlays': () => import('../ui/feedback.js').then(m => m.hideAllWelcomeOverlays),
   'updateCurrentPitchDisplay': () => import('../ui/feedback.js').then(m => m.updateCurrentPitchDisplay),
   'updateAllMessageDisplays': () => import('../ui/feedback.js').then(m => m.updateAllMessageDisplays),
@@ -11,7 +10,6 @@ const LAZY_TOOLS = {
   'showAnswerFeedback': () => import('../ui/feedback.js').then(m => m.showAnswerFeedback),
   'updateIntervalDisplayInfo': () => import('../ui/feedback.js').then(m => m.updateIntervalDisplayInfo),
   'showUkulelePositions': () => import('../ui/feedback.js').then(m => m.showUkulelePositions),
-  'initPitchVisualizer': () => import('../ui/feedback.js').then(m => m.initPitchVisualizer),
   'enableAnswerButtons': () => import('../ui/feedback.js').then(m => m.enableAnswerButtons),
   'disableAnswerButtons': () => import('../ui/feedback.js').then(m => m.disableAnswerButtons),
   'updateAnswerAreaState': () => import('../ui/feedback.js').then(m => m.updateAnswerAreaState),
@@ -51,6 +49,7 @@ const LAZY_TOOLS = {
   'initBaseModeButtons': () => import('../ui/settings.js').then(m => m.initBaseModeButtons),
   'initMobileSidebar': () => import('../ui/settings.js').then(m => m.initMobileSidebar),
   'initInfoDisplaySlider': () => import('../ui/settings.js').then(m => m.initInfoDisplaySlider),
+  'initAllSettings': () => import('../ui/settings.js').then(m => m.initAllSettings),
 
   // ==================== 测验核心功能 ====================
   'playQuizSequence': () => import('../quiz/manager.js').then(m => m.playQuizSequence),
@@ -62,10 +61,16 @@ const LAZY_TOOLS = {
   'applyPendingRangeChange': () => import('../ui/range-manager.js').then(m => m.applyPendingRangeChange),
   'updateRange': () => import('../ui/range-manager.js').then(m => m.updateRange),
   'getCurrentKey': () => import('../ui/range-manager.js').then(m => m.getCurrentKey),
+  'initRangeSystem': () => import('../ui/range-manager.js').then(m => m.initRangeSystem),
+  'bindLeftPanelRangeButtons': () => import('../ui/range-manager.js').then(m => m.bindLeftPanelRangeButtons),
 
   // ==================== 音频管理 ====================
   'stopPlayback': () => import('../audio/engine.js').then(m => m.stopPlayback),
-  'playNoteSampler': () => import('../audio/engine.js').then(m => m.playNoteSampler),
+  'playQuizAudio': () => import('../audio/playback-manager.js').then(m => m.playQuizAudio),
+  'playPureAudio': () => import('../audio/playback-manager.js').then(m => m.playPureAudio),
+  'ensureAudioContextReady': () => import('../audio/engine.js').then(m => m.ensureAudioContextReady),
+  'playNoteSampler': () => import('../audio/playback-manager.js').then(m => m.playNoteSampler),
+
   // ==================== 新增DOM访问工具 ====================
   'getAnswerTransformWrapper': () => Promise.resolve(() => document.getElementById('answerTransformWrapper')),
   'getAnsArea': () => Promise.resolve(() => document.getElementById('ans')),
@@ -74,11 +79,23 @@ const LAZY_TOOLS = {
   'getStartButton': () => Promise.resolve(() => document.getElementById('startBtn')),
   'getStatusBox': () => Promise.resolve(() => document.getElementById('statusBox')),
   
-  // ==================== 新增UI状态工具 ====================
+  // ==================== UI状态工具 ====================
   'getAppState': () => Promise.resolve(() => window.AppState),
   'updateAppState': () => Promise.resolve((key, value) => {
     if (window.AppState) window.AppState[key] = value;
   }),
+
+  // ==================== 错误次数管理 ====================
+  'handleWrongAnswer': () => import('../quiz/error-limit-manager.js').then(m => m.handleWrongAnswer),
+  'shouldRevealAnswer': () => import('../quiz/error-limit-manager.js').then(m => m.shouldRevealAnswer),
+  'revealCorrectAnswer': () => import('../quiz/error-limit-manager.js').then(m => m.revealCorrectAnswer),
+  'resetErrorCount': () => import('../quiz/error-limit-manager.js').then(m => m.resetErrorCount),
+  'getErrorStatus': () => import('../quiz/error-limit-manager.js').then(m => m.getCurrentErrorStatus),
+  'initErrorLimitSystem': () => import('../quiz/error-limit-manager.js').then(m => m.initErrorLimitSystem),
+  
+  // ==================== 错误次数状态获取 ====================
+  'getCurrentErrorStatus': () => import('../quiz/error-limit-manager.js').then(m => m.getCurrentErrorStatus),
+
 };
 
 export function registerAllTools() {  
@@ -151,7 +168,15 @@ export const TOOL_GROUPS = {
     'initRightPanel',
     'initAllPanelFeatures',
     'updateRightPanelStats'
-  ]
+  ],
+  ERROR_LIMIT: [
+    'handleWrongAnswer',
+    'shouldRevealAnswer', 
+    'revealCorrectAnswer',
+    'resetErrorCount',
+    'getErrorStatus',
+    'initErrorLimitSystem'
+  ],
 };
 
 export function checkToolbox() {
@@ -160,7 +185,9 @@ export function checkToolbox() {
     'updateCurrentPitchDisplay',
     'playQuizSequence',
     'checkAnswer',
-    'disableAnswerButtons'
+    'disableAnswerButtons',
+    'handleWrongAnswer', 
+    'revealCorrectAnswer'
   ];
   
   const missingTools = criticalTools.filter(tool => !AppGlobal.hasTool(tool));

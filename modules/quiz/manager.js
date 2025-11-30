@@ -14,342 +14,375 @@ import statsManager from './stats-manager.js';
 // 导入工具箱
 import AppGlobal from '../core/app.js';
 
+// 简单延迟函数
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // 答题区渲染
 async function playQuizSequence(isReplay = false) {
-
-    const hideOverlays = AppGlobal.getTool('hideAllWelcomeOverlays');
-    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
-    const updateAnswerState = AppGlobal.getTool('updateAnswerAreaState');
-    const disableButtons = AppGlobal.getTool('disableAnswerButtons');
-    const enableButtons = AppGlobal.getTool('enableAnswerButtons');
-    const syncButtons = AppGlobal.getTool('syncButtonStates');
-    const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
-    const renderFunc = AppGlobal.getTool('renderAnswerButtons');
-    const updateAllMessages = AppGlobal.getTool('updateAllMessageDisplays');
-    const getCurrentRangeFunc = AppGlobal.getTool('getCurrentRange');
-    const PendingChange = AppGlobal.getTool('applyPendingRangeChange');
-
-    if (!isReplay && PendingChange) {
-        const rangeChanged = PendingChange();
-    }
+    // 创建中断标志和检查函数
+    let interrupted = false;
     
-    if (!isReplay && AppState.dom.ansArea) {
-        const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
-        buttons.forEach(btn => {
-            btn.classList.remove('hit', 'miss');
-        });
-    }
-
-    if (AppState.ui.firstPlay && !isReplay) {
-        AppState.ui.firstPlay = false;
-        hideOverlays();
-    }
+    const checkInterrupt = () => {
+        if (AppState.quiz.fromReset || AppState.audio.shouldStop) {
+            interrupted = true;
+            throw new Error('PLAYBACK_INTERRUPTED');
+        }
+    };
     
-    updateModeVisuals(); 
-    if (!isReplay) {
-        // 应用预选调性
-        if (AppState.quiz.pendingKeyChange) {
-            const newKey = AppState.quiz.pendingKeyChange;
-            AppState.quiz.currentKey = newKey;
-            AppState.quiz.pendingKeyChange = null;
+    // 可中断的延迟函数
+    const interruptibleDelay = async (ms) => {
+        const chunkSize = 100; // 每100ms检查一次中断
+        let remaining = ms;
+        
+        while (remaining > 0 && !interrupted) {
+            const currentChunk = Math.min(chunkSize, remaining);
+            await delay(currentChunk);
+            checkInterrupt();
+            remaining -= currentChunk;
+        }
+    };
+
+    try {
+        // 开始前检查
+        checkInterrupt();
+        
+        // 在播放前应用待处理的音域更改
+        if (AppState.quiz.pendingRangeChange && !isReplay) {
+            console.log('播放前应用待处理音域:', AppState.quiz.pendingRangeChange);
+            AppState.quiz.currentRange = AppState.quiz.pendingRangeChange;
+            AppState.quiz.pendingRangeChange = null;
             
-            const keySelect = document.getElementById('keySelect');
-            if (keySelect) keySelect.value = newKey;
+            const activeRangeBtn = document.querySelector(`.range-btn[data-range="${AppState.quiz.currentRange}"]`);
+            if (activeRangeBtn) {
+                document.querySelectorAll('.range-btn').forEach(btn => btn.classList.remove('active'));
+                activeRangeBtn.classList.add('active');
+            }
         }
         
-        // 应用预选基准音模式
-        if (AppState.quiz.pendingBaseModeChange) {
-            const newMode = AppState.quiz.pendingBaseModeChange;
-            AppState.quiz.questionBaseMode = newMode;
-            AppState.quiz.pendingBaseModeChange = null;
-            
-            const modeButtons = document.querySelectorAll('.mode-btn');
-            modeButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.mode === newMode);
+        checkInterrupt();
+        
+        const hideOverlays = AppGlobal.getTool('hideAllWelcomeOverlays');
+        const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
+        const updateAnswerState = AppGlobal.getTool('updateAnswerAreaState');
+        const disableButtons = AppGlobal.getTool('disableAnswerButtons');
+        const enableButtons = AppGlobal.getTool('enableAnswerButtons');
+        const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
+        const updateAllMessageDisplaysFunc = AppGlobal.getTool('updateAllMessageDisplays');
+        const getCurrentRangeFunc = AppGlobal.getTool('getCurrentRange');
+        const addVisualFeedback = AppGlobal.getTool('addVisualFeedback');
+        const clearVisualFeedback = AppGlobal.getTool('clearVisualFeedback');
+        
+        console.log('=== 播放序列开始 ===');
+        
+        if (!isReplay && AppState.dom.ansArea) {
+            const buttons = AppState.dom.ansArea.querySelectorAll('.key-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('hit', 'miss');
             });
         }
-        
-        // 应用预选难度
-        if (AppState.quiz.pendingDifficultyChange) {
-            const newDifficulty = AppState.quiz.pendingDifficultyChange;
-            AppState.quiz.currentDifficulty = newDifficulty;
-            AppState.quiz.pendingDifficultyChange = null;
-            
-            const difficultySelect = document.getElementById('difficultySelect');
-            if (difficultySelect) difficultySelect.value = newDifficulty;
+
+        if (AppState.ui.firstPlay && !isReplay) {
+            AppState.ui.firstPlay = false;
+            hideOverlays();
         }
-
-          // ========== 修复：应用预选设置后通知状态栏
-        window.dispatchEvent(new CustomEvent('settings-applied', {
-            detail: {
-                key: AppState.quiz.currentKey,
-                baseMode: AppState.quiz.questionBaseMode,
-                difficulty: AppState.quiz.currentDifficulty
-            }
-        }));
-    }
-
-    /* ---------- 1. 新题目：先更新调号与基准音 ---------- */
-    if (!isReplay) {
-        if (statsManager && typeof statsManager.cancelCurrentQuestion === 'function') {
-            statsManager.cancelCurrentQuestion();
-        }
-        statsManager.recordNewQuestion();
         
-        // 保存出题时的基准音模式
-        const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
-        AppState.quiz.questionBaseMode = baseMode;
-        
-        window.dispatchEvent(new CustomEvent('base-mode-changed', {
-            detail: { mode: baseMode }
-        }));
-
-        const newKey = document.getElementById('keySelect')?.value || 'C';
-        AppState.quiz.currentKey = newKey;
-        AppState.quiz.hasStarted = true;
-        AppState.quiz.answered = false;
-        
-        // 重置当前题目的尝试状态
-        AppState.quiz.hasAnsweredCurrent = false;
-        AppState.quiz.attemptCount = 0;
-        
-        // 使用工具箱重置答案信息
-        const resetInfo = AppGlobal.getTool('resetAnswerInfo');
-        resetInfo();
-
-        const degreeElement = document.getElementById('currentDegree');
-
-        /* 让基准音随调号和音域走 */
-        const currentRange = getCurrentRangeFunc();
-        const isLowRange = currentRange[0] === 'C3';
-        
-        if (baseMode === 'c') {
-            // 固定C模式
-            const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
-            AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
-            AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
-        } else {
-            // 固定A模式
-            const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
-            AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
-            AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
-        }
-
-        // 🔴 修复关键点：立即设置当前音阶和难度，并渲染答题按钮
-        AppState.quiz.currentDifficulty = document.getElementById('difficultySelect')?.value || 'basic';
-        const key = AppState.quiz.currentKey;
-        const difficulty = AppState.quiz.currentDifficulty;
-        
-        // 根据当前音域获取对应的音阶
-        const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRange);
-        const fullScale = getScaleForRange(KEY_SCALES[key]?.extended || KEY_SCALES.C.extended, currentRange);
-        
-        AppState.quiz.currentScale = difficulty === 'basic' ? naturalScale : fullScale;
-
-        // 🔴 立即渲染答题按钮（新增这行代码）
-        if (AppState.dom.ansArea && renderFunc) {
-            AppState.dom.ansArea.style.display = 'grid';
-            renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
-            disableButtons();
-        }
-    }
-    
-    /* ---------- 2. 音频就绪检查 ---------- */
-    const audioReady = await ensureAudioContextReady();
-    if (!audioReady) {
-        updateAllMessages('音频未就绪，请点击页面激活');
-        AppState.quiz.locked = false;
-        // 解锁基准音按钮
-        const modeButtons = document.querySelectorAll('.mode-btn');
-        modeButtons.forEach(btn => {
-            btn.disabled = false;
-        });
-        updateResetButtonState();
-        return;
-    }
-    
-    AppState.quiz.locked = true;
-    updateAnswerState();
-    updateResetButtonState();
-    updateBigButtonState();
-    disableButtons();
-    
-    try {
-        const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
-        const enableScale = document.getElementById('enableScalePlayback')?.checked ?? true;
-        const currentRange = getCurrentRangeFunc();
-        const key = AppState.quiz.currentKey;
-        const difficulty = AppState.quiz.currentDifficulty;
-        
-        // 根据当前音域获取对应的音阶
-        const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRange);
-        const fullScale = getScaleForRange(KEY_SCALES[key]?.extended || KEY_SCALES.C.extended, currentRange);
-        
-        /* 取已存好的动态基准音 */
-        const baseNote = getQuestionBaseNote();
-        
-        // 🔴 确保使用已设置的音阶（移除这里的重复设置）
-        // if (!isReplay) {
-        //     AppState.quiz.currentScale = difficulty === 'basic' ? naturalScale : fullScale;
-        // }
-        
-        /* ---------- 3. 播放流程 ---------- */
-        const eighthNote = 0.5, quarterNote = 1.0, noteInterval = 120;
+        updateModeVisuals(); 
         
         if (!isReplay) {
-            updatePitch('--', null);
-            // 🔴 使用已经设置好的音阶
-            const targetScale = AppState.quiz.currentScale;
+            // 重置“已答”标记，否则第二题会被跳过
+            statsManager.recordNewQuestion();
+            checkInterrupt();
             
-            let targetIndex;
-            let newTargetNote;
-            let attempts = 0;
-            const maxAttempts = 10; // 防止无限循环
+            const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
+            AppState.quiz.questionBaseMode = baseMode;
             
-            do {
-                targetIndex = Math.floor(Math.random() * targetScale.length);
-                newTargetNote = targetScale[targetIndex];
-                attempts++;
-            } while (
-                // 避免与最近3题重复
-                AppState.quiz.recentTargetNotes.includes(newTargetNote) && 
-                targetScale.length > 3 && // 确保有足够的选择
-                attempts < maxAttempts
-            );
-            
-            AppState.quiz.currentTargetNote = newTargetNote;
-            AppState.quiz.currentNoteIdx = targetIndex;
+            window.dispatchEvent(new CustomEvent('base-mode-changed', {
+                detail: { mode: baseMode }
+            }));
+
+            const newKey = document.getElementById('keySelect')?.value || 'C';
+            AppState.quiz.currentKey = newKey;
+            AppState.quiz.hasStarted = true;
             AppState.quiz.answered = false;
             
-            // 更新历史记录，只保留最近3个
-            AppState.quiz.recentTargetNotes.unshift(newTargetNote);
-            AppState.quiz.recentTargetNotes = AppState.quiz.recentTargetNotes.slice(0, 3);
-        } else {
+            AppState.quiz.hasAnsweredCurrent = false;
+            AppState.quiz.attemptCount = 0;
+            
+            const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+            updateResetButtonState?.();
+
+            const resetInfo = AppGlobal.getTool('resetAnswerInfo');
+            resetInfo();
+
+            const currentRangeType = AppState.quiz.currentRange || 'low';
+            const currentRangeArray = getCurrentRangeFunc();
+            
+            console.log('播放序列 - 当前音域类型:', currentRangeType);
+            
+            const isLowRange = currentRangeType === 'low';
+            
+            if (baseMode === 'c') {
+                const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
+                AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
+                AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
+            } else {
+                const baseScale = KEY_SCALES[newKey]?.basic || KEY_SCALES.C.basic;
+                AppState.quiz.fixedCNote = isLowRange ? baseScale[0] : adjustOctave(baseScale[0], 1);
+                AppState.quiz.fixedANote = isLowRange ? 'A3' : 'A4';
+            }
+
+            AppState.quiz.currentDifficulty = document.getElementById('difficultySelect')?.value || 'basic';
+            const key = AppState.quiz.currentKey;
+            const difficulty = AppState.quiz.currentDifficulty;
+            
+            const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRangeType);
+            const fullScale = getScaleForRange(KEY_SCALES[key]?.extended || KEY_SCALES.C.extended, currentRangeType);
+
+            AppState.quiz.currentScale = difficulty === 'basic' ? naturalScale : fullScale;
+
             if (AppState.dom.ansArea) {
-                AppState.dom.ansArea.style.display = 'grid';
-                renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
-                disableButtons();
-            }
-        }
-        
-        if (AppState.audio.shouldStop) { 
-            AppState.audio.shouldStop = false; 
-            updateResetButtonState(); 
-            return; 
-        }
-        
-        if ((!isReplay || enableScale) && enableScale) {
-            if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_SCALE;
-            updateBigButtonState();
-            updateAllMessages(UI_TEXT.PLAYING_SCALE);
-            updateAnswerState();
-            
-            for (const note of naturalScale) {
-                if (AppState.audio.shouldStop) break;
-                
-                // 添加音阶播放的视觉反馈
-                const addVisualFeedback = AppGlobal.getTool('addVisualFeedback');
-                if (addVisualFeedback) {
-                    addVisualFeedback(note, 'scale');
+                const renderFunc = AppGlobal.getTool('renderAnswerButtons');
+                if (renderFunc) {
+                    AppState.dom.ansArea.style.display = 'grid';
+                    AppState.dom.ansArea.classList.remove('disabled');
+                    renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
+                    disableButtons();
                 }
-                
-                await playNoteSampler(note, eighthNote);
-                if (AppState.audio.shouldStop) break;
-                await new Promise(resolve => setTimeout(resolve, noteInterval));
             }
-            
-            if (!AppState.audio.shouldStop) await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        if (AppState.audio.shouldStop) { 
-            AppState.audio.shouldStop = false; 
-            updateResetButtonState(); 
-            return; 
+        checkInterrupt();
+        
+        /* ---------- 音频就绪检查 ---------- */
+        const audioReady = await ensureAudioContextReady();
+        if (!audioReady) {
+            if (updateAllMessageDisplaysFunc) {
+                updateAllMessageDisplaysFunc('音频未就绪，请点击页面激活');
+            }
+            AppState.quiz.locked = false;
+            return;
         }
         
-        /* 播放基准音 */
-        if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_REFERENCE;
-        updateBigButtonState();
-        updateAllMessages(UI_TEXT.PLAYING_REFERENCE);
+        checkInterrupt();
+        
+        AppState.quiz.locked = true;
         updateAnswerState();
         
-        // 第一次播放基准音
-        const addVisualFeedback = AppGlobal.getTool('addVisualFeedback');
-        if (addVisualFeedback) {
-            addVisualFeedback(baseNote, 'reference');
-        }
-        
-        await playNoteSampler(baseNote, quarterNote);
-        if (AppState.audio.shouldStop) { 
-            updateResetButtonState(); 
-            return; 
-        }
-        await new Promise(resolve => setTimeout(resolve, noteInterval));
-        
-        // 第二次播放基准音
-        if (addVisualFeedback) {
-            addVisualFeedback(baseNote, 'reference');
-        }
-        
-        await playNoteSampler(baseNote, quarterNote);
-        if (AppState.audio.shouldStop) { 
-            updateResetButtonState(); 
-            return; 
-        }
-        await new Promise(resolve => setTimeout(resolve, noteInterval));
-        
-        if (AppState.audio.shouldStop) { 
-            AppState.audio.shouldStop = false; 
-            updateResetButtonState(); 
-            return; 
-        }
-        
-        /* 播放目标音 */
+        const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+        const updateBigButtonState = AppGlobal.getTool('updateBigButtonState');
+        updateResetButtonState?.();
+        updateBigButtonState?.();
         disableButtons();
         
-        if (AppState.dom.mainBtn) {
-            AppState.dom.mainBtn.textContent = isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET;
+        try {
+            const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
+            const enableScale = document.getElementById('enableScalePlayback')?.checked ?? true;
+            
+            const currentRangeType = AppState.quiz.currentRange || 'low';
+            const key = AppState.quiz.currentKey;
+            const difficulty = AppState.quiz.currentDifficulty;
+
+            const naturalScale = getScaleForRange(KEY_SCALES[key]?.basic || KEY_SCALES.C.basic, currentRangeType);
+            
+            const baseNote = getQuestionBaseNote();
+            
+            const eighthNote = 0.5, quarterNote = 1.0, noteInterval = 120;
+            
+            if (!isReplay) {
+                updatePitch('--', null);
+                const targetScale = AppState.quiz.currentScale;
+                
+                let targetIndex;
+                let newTargetNote;
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                do {
+                    targetIndex = Math.floor(Math.random() * targetScale.length);
+                    newTargetNote = targetScale[targetIndex];
+                    attempts++;
+                } while (
+                    AppState.quiz.recentTargetNotes.includes(newTargetNote) && 
+                    targetScale.length > 3 &&
+                    attempts < maxAttempts
+                );
+                
+                AppState.quiz.currentTargetNote = newTargetNote;
+                AppState.quiz.currentNoteIdx = targetIndex;
+                AppState.quiz.answered = false;
+                
+                AppState.quiz.recentTargetNotes.unshift(newTargetNote);
+                AppState.quiz.recentTargetNotes = AppState.quiz.recentTargetNotes.slice(0, 3);
+            } else {
+                if (AppState.dom.ansArea) {
+                    const renderFunc = AppGlobal.getTool('renderAnswerButtons');
+                    if (renderFunc) {
+                        AppState.dom.ansArea.style.display = 'grid';
+                        renderFunc(AppState.quiz.currentScale, AppState.quiz.currentDifficulty);
+                        disableButtons();
+                    }
+                }
+            }
+            
+            checkInterrupt();
+            
+            /* ---------- 播放音阶 ---------- */
+            if ((!isReplay || enableScale) && enableScale) {
+                checkInterrupt();
+                
+                if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_SCALE;
+                updateBigButtonState?.();
+                if (updateAllMessageDisplaysFunc) updateAllMessageDisplaysFunc(UI_TEXT.PLAYING_SCALE);
+                updateAnswerState?.();
+                
+                for (const note of naturalScale) {
+                    checkInterrupt();
+                    
+                    if (addVisualFeedback) {
+                        addVisualFeedback(note, 'scale');
+                    }
+                    
+                    const playQuizAudioFunc = AppGlobal.getTool('playQuizAudio');
+                    await playQuizAudioFunc(note, eighthNote);
+                    checkInterrupt();
+                    
+                    await interruptibleDelay(noteInterval);
+                    checkInterrupt();
+                }
+                
+                if (!interrupted) await interruptibleDelay(300);
+            }
+            
+            checkInterrupt();
+            
+            /* ---------- 播放基准音 ---------- */
+            if (AppState.dom.mainBtn) AppState.dom.mainBtn.textContent = UI_TEXT.PLAYING_REFERENCE;
+            updateBigButtonState?.();
+            if (updateAllMessageDisplaysFunc) updateAllMessageDisplaysFunc(UI_TEXT.PLAYING_REFERENCE);
+            updateAnswerState?.();
+            
+            checkInterrupt();
+            
+            if (addVisualFeedback) {
+                addVisualFeedback(baseNote, 'reference');
+            }
+            
+            const playQuizAudioFunc = AppGlobal.getTool('playQuizAudio');
+            await playQuizAudioFunc(baseNote, quarterNote);
+            checkInterrupt();
+            
+            await interruptibleDelay(noteInterval);
+            checkInterrupt();
+            
+            if (addVisualFeedback) {
+                addVisualFeedback(baseNote, 'reference');
+            }
+            
+            await playQuizAudioFunc(baseNote, quarterNote);
+            checkInterrupt();
+            
+            await interruptibleDelay(noteInterval);
+            checkInterrupt();
+            
+            /* ---------- 播放目标音 ---------- */
+            disableButtons?.();
+            
+            if (AppState.dom.mainBtn) {
+                AppState.dom.mainBtn.textContent = isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET;
+            }
+            updateBigButtonState?.();
+            if (updateAllMessageDisplaysFunc) updateAllMessageDisplaysFunc(isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET);
+            updateAnswerState?.();
+            
+            checkInterrupt();
+            
+            if (addVisualFeedback) {
+                addVisualFeedback(AppState.quiz.currentTargetNote, 'target');
+            }
+            
+            await playQuizAudioFunc(AppState.quiz.currentTargetNote, quarterNote);
+            checkInterrupt();
+
+            if (!interrupted) {
+                enableButtons?.();
+                
+                AppState.quiz.hasStarted = true;
+                AppState.quiz.isReplayMode = isReplay;
+                
+                if (AppState.dom.mainBtn) {
+                    AppState.dom.mainBtn.textContent = UI_TEXT.REPLAY;
+                    updateBigButtonState?.();
+                }
+            } else {
+                disableButtons?.();
+            }
+            
+        } catch (error) {
+            if (error.message !== 'PLAYBACK_INTERRUPTED') {
+                console.error('播放序列错误:', error);
+                if (updateAllMessageDisplaysFunc) {
+                    updateAllMessageDisplaysFunc('播放出错，请重试');
+                }
+            }
+        } finally {
+            if (!interrupted) {
+                AppState.quiz.locked = false;
+                const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
+                const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+                const updateBigButtonState = AppGlobal.getTool('updateBigButtonState');
+                const syncButtons = AppGlobal.getTool('syncButtonStates');
+                
+                updateModeVisuals?.();
+                updateResetButtonState?.();
+                updateBigButtonState?.();
+                syncButtons?.();
+                
+                if (!AppState.quiz.answered && updateAllMessageDisplaysFunc) {
+                    updateAllMessageDisplaysFunc('请选择你听到的音高');
+                }
+            } else {
+                console.log('播放流程被复位中断');
+                AppState.quiz.locked = false;
+            }
         }
-        updateBigButtonState();
-        updateAllMessages(isReplay ? UI_TEXT.REPLAYING_TARGET : UI_TEXT.PLAYING_TARGET);
-        updateAnswerState();
-        
-        // 添加目标音播放的视觉反馈
-        if (addVisualFeedback) {
-            addVisualFeedback(AppState.quiz.currentTargetNote, 'target');
-        }
-        
-        await playNoteSampler(AppState.quiz.currentTargetNote, quarterNote);
-        enableButtons();
-        
-        if (AppState.dom.mainBtn) {
-            AppState.dom.mainBtn.textContent = UI_TEXT.REPLAY;
-            updateBigButtonState();
-        }
-        
-        AppState.quiz.hasStarted = true;
-        AppState.quiz.isReplayMode = isReplay;
         
     } catch (error) {
-        console.error('播放序列错误:', error);
-        updateAllMessages('播放出错，请重试');
-    } finally {
-        AppState.quiz.locked = false;
-        updateModeVisuals();
-        updateAnswerState();
-        updateResetButtonState();
-        updateBigButtonState();
-        syncButtons();
-        
-        if (!AppState.quiz.answered) {
-            updateAllMessages('请选择你听到的音高');
+        if (error.message === 'PLAYBACK_INTERRUPTED') {
+            console.log('播放流程在开始阶段被中断');
+            AppState.quiz.locked = false;
+        } else {
+            console.error('播放序列外层错误:', error);
         }
     }
 }
 
+function interruptibleDelay(ms, controller) {
+    return new Promise((resolve) => {
+        let resolved = false;
+        
+        const timeoutId = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                resolve();
+            }
+        }, ms);
+        
+        const checkInterval = setInterval(() => {
+            if (controller.shouldStop() && !resolved) {
+                resolved = true;
+                clearTimeout(timeoutId);
+                clearInterval(checkInterval);
+                resolve();
+            }
+        }, 50);
+    });
+}
+
 // 根据音域获取对应的基准音
 function getBaseNoteForRange(baseMode, key, currentRange) {
-  const isLowRange = currentRange[0].includes('3'); // 判断是否是小字组音域
+    const isLowRange = currentRange === 'low';
   
   console.log('getBaseNoteForRange 调试:');
   console.log('baseMode:', baseMode, 'key:', key, 'isLowRange:', isLowRange);
@@ -381,46 +414,114 @@ function adjustOctave(noteName, octaveShift) {
 }
 
 // 根据音域获取对应的音阶
-function getScaleForRange(scale, currentRange) {
-  const isLowRange = currentRange[0] === 'C3';
-  
-  if (isLowRange) {
-    // 小字组音域：保持原音阶（已经是小字组）
-    return scale;
-  } else {
-    // 小字1组音域：将音阶整体升八度
-    const adjustedScale = scale.map(note => adjustOctave(note, 1));
-    return adjustedScale;
+function getScaleForRange(scale, rangeType) {
+    const isLowRange = rangeType === 'low'; // 直接使用音域类型判断
+    
+    if (isLowRange) {
+      // 小字组音域：保持原音阶（已经是小字组）
+      return scale;
+    } else {
+      // 小字1组音域：将音阶整体升八度
+      const adjustedScale = scale.map(note => adjustOctave(note, 1));
+      return adjustedScale;
+    }
   }
-}
 
 // 检查答案
 
 function checkAnswer(btn, selectedIndex) {
     if (btn.classList.contains('hit') || btn.classList.contains('miss') || AppState.quiz.answered) return;
     
-    const showFeedback = AppGlobal.getTool('showAnswerFeedback');
-    const disableButtons = AppGlobal.getTool('disableAnswerButtons');
-    const syncButtons = AppGlobal.getTool('syncButtonStates');
-    const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
-    const updateIntervalDisplay = AppGlobal.getTool('updateIntervalDisplayInfo');
-    const showUkulele = AppGlobal.getTool('showUkulelePositions');
-    const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
-    const addHistory = AppGlobal.getTool('addToHistory');
-    const showCards = AppGlobal.getTool('showInfoCards');
-    const hideCards = AppGlobal.getTool('hideInfoCards');
-    const resetInfo = AppGlobal.getTool('resetAnswerInfo');
-    const updateAllMessages = AppGlobal.getTool('updateAllMessageDisplays') || updateAllMessageDisplays;
+    console.log('🎯 checkAnswer 开始', { 
+        selectedIndex, 
+        currentNoteIdx: AppState.quiz.currentNoteIdx,
+        hasAnsweredCurrent: AppState.quiz.hasAnsweredCurrent,
+        attemptCount: AppState.quiz.attemptCount
+    });
+    
     const isCorrect = selectedIndex === AppState.quiz.currentNoteIdx;
-    
-    // 正确判断是否是第一次尝试
-    const isFirstAttempt = !AppState.quiz.hasAnsweredCurrent && AppState.quiz.attemptCount === 0;
-    
-    updateAllMessageDisplays(isCorrect ? '回答正确！' : '回答错误，请重试');
 
+    // 记录这次点击之前已经尝试了几次
+    const prevAttempts = AppState.quiz.attemptCount || 0;
+    
+    // 只有在完全没点过这一题时才算“首击”
+    const isFirstAttempt = prevAttempts === 0;
+    
+    // 当前这一下计入一次尝试
+    AppState.quiz.attemptCount = prevAttempts + 1;
+    
+    console.log('🎯 答题结果', { 
+        isCorrect, 
+        isFirstAttempt,
+        prevAttempts,
+        attemptCountAfter: AppState.quiz.attemptCount
+    });
+    
+    console.log('🎯 答题结果', { isCorrect, isFirstAttempt });
+
+    // 🔴 关键修复：先处理错误次数逻辑，确定是否要揭示答案
+    let shouldRevealAnswer = false;
+    let recordedCorrect = isCorrect;
+
+    if (!isCorrect) {
+        const handleWrongAnswer = AppGlobal.getTool('handleWrongAnswer');
+        if (handleWrongAnswer) {
+            const errorResult = handleWrongAnswer();
+            console.log('🔴 错误处理结果:', errorResult);
+            
+            if (errorResult.shouldReveal) {
+                shouldRevealAnswer = true;
+                recordedCorrect = false; // 系统揭示答案视为错误
+            }
+        }
+    }
+
+    // 🔴 关键修复：立即记录统计信息（在修改任何状态之前）
+    const difficulty = document.getElementById('difficultySelect')?.value || 'basic';
+    const key = document.getElementById('keySelect')?.value || 'C';
+    const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
+    const userAnswerNote = getNoteNameFromIndex(selectedIndex, difficulty, key);
+
+    console.log('📊 准备记录统计', { 
+        recordedCorrect, 
+        isFirstAttempt, 
+        userAnswerNote,
+        baseMode, 
+        key, 
+        difficulty 
+    });
+
+    // 🔴 关键修复：确保 statsManager 存在并记录统计
+    if (typeof statsManager !== 'undefined' && statsManager && typeof statsManager.recordAnswer === 'function') {
+        try {
+            const result = statsManager.recordAnswer(recordedCorrect, isFirstAttempt, userAnswerNote, baseMode, key, difficulty);
+            console.log('📊 统计记录完成', result);
+        } catch (error) {
+            console.error('❌ 统计记录失败:', error);
+        }
+    } else {
+        console.error('❌ statsManager 不可用', { 
+            statsManager: typeof statsManager,
+            recordAnswer: statsManager ? typeof statsManager.recordAnswer : 'undefined'
+        });
+    }
+
+    // 更新右侧面板统计
+    if (typeof updateRightPanelStats === 'function') {
+        updateRightPanelStats();
+    } else {
+        console.error('❌ updateRightPanelStats 不可用');
+    }
+
+    // 更新历史记录
+    const addHistory = AppGlobal.getTool('addToHistory');
+    if (addHistory) {
+        addHistory(userAnswerNote, recordedCorrect, shouldRevealAnswer, isFirstAttempt);
+    }
+
+    // 🔴 关键修复：UI 反馈和状态更新
     btn.classList.add(isCorrect ? 'hit' : 'miss');
 
-    // 如果是正确答案，暂时移除disabled状态以确保样式显示
     if (isCorrect) {
         btn.disabled = false;
         setTimeout(() => {
@@ -429,83 +530,105 @@ function checkAnswer(btn, selectedIndex) {
     }
 
     playSFX(isCorrect ? 'ok' : 'fail');
-    showFeedback(isCorrect);
+    
+    const showFeedback = AppGlobal.getTool('showAnswerFeedback');
+    if (showFeedback) showFeedback(isCorrect);
 
     // 答对后禁用复位
     if (isCorrect) {
         AppState.quiz.canReset = false;
-        updateResetButtonState();
+        const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+        updateResetButtonState?.();
     }
 
-    // 答对后禁用所有答题按钮
-    if (isCorrect) {
-        disableButtons();
+    // 处理揭示答案的情况
+    let feedbackMessage = isCorrect ? '回答正确！' : '回答错误，请重试';
+    
+    if (shouldRevealAnswer) {
+        feedbackMessage = '请看正确答案！';
+        const revealCorrectAnswer = AppGlobal.getTool('revealCorrectAnswer');
+        if (revealCorrectAnswer) {
+            revealCorrectAnswer();
+        }
+    } else if (!isCorrect) {
+        const getErrorStatus = AppGlobal.getTool('getErrorStatus');
+        const errorStatus = getErrorStatus ? getErrorStatus() : { enabled: false, current: 0, allowed: 0 };
+        
+        if (errorStatus.enabled) {
+            feedbackMessage = `回答错误！再听听看 (${errorStatus.current}/${errorStatus.allowed})`;
+        } else {
+            feedbackMessage = '回答错误，请重试';
+        }
     }
-    
-    syncButtons();
-    
-    // 获取所有统计参数
-    const difficulty = document.getElementById('difficultySelect')?.value || 'basic';
-    const key = document.getElementById('keySelect')?.value || 'C';
-    const baseMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'c';
-    const userAnswerNote = getNoteNameFromIndex(selectedIndex, difficulty, key);
 
-// 使用统计管理器记录答案
-statsManager.recordAnswer(isCorrect, isFirstAttempt, userAnswerNote, baseMode, key, difficulty);
+    const updateAllMessages = AppGlobal.getTool('updateAllMessageDisplays');
+    if (updateAllMessages) updateAllMessages(feedbackMessage);
 
-// 更新右侧面板统计
-if (typeof updateRightPanelStats === 'function') {
-    updateRightPanelStats();
-} else {
-    console.error('❌ updateRightPanelStats 不可用');
-}
-
-  
-    // 更新历史记录
-    addHistory(userAnswerNote, isCorrect);
-    // 答对后的处理
-    if (isCorrect) {
+    // 答对或揭示答案后禁用所有答题按钮
+    if (isCorrect || shouldRevealAnswer) {
+        const disableButtons = AppGlobal.getTool('disableAnswerButtons');
+        if (disableButtons) disableButtons();
+        
         AppState.quiz.answered = true;
-        AppState.quiz.hasAnsweredCurrent = true; // 标记当前题目已回答
+        AppState.quiz.hasAnsweredCurrent = true;
+    }
+
+    const syncButtons = AppGlobal.getTool('syncButtonStates');
+    if (syncButtons) syncButtons();
+
+    // 答对后的处理
+    if (isCorrect || shouldRevealAnswer) {
+        // 更新复位按钮状态
+        const updateResetButtonState = AppGlobal.getTool('updateResetButtonState');
+        updateResetButtonState?.();
 
         if (AppState.quiz.currentTargetNote) {
             const frequency = NOTE_FREQUENCIES[AppState.quiz.currentTargetNote];
             // 回答正确后更新显示完整信息
-            updatePitch(AppState.quiz.currentTargetNote, frequency);
+            const updatePitch = AppGlobal.getTool('updateCurrentPitchDisplay');
+            if (updatePitch) updatePitch(AppState.quiz.currentTargetNote, frequency);
         }
         
-        // 显示音程信息 - 使用出题时的基准音模式，而不是当前选择的
+        // 显示音程信息
         const currentKey = AppState.quiz.currentKey || 'C';
         const baseNote = getQuestionBaseNote();
         const targetNote = AppState.quiz.currentTargetNote;
         const intervalType = calculateIntervalType(baseNote, targetNote);
         
-        // 显示音程信息
         if (intervalType) {
-            updateIntervalDisplay(baseNote, targetNote, intervalType);
+            const updateIntervalDisplay = AppGlobal.getTool('updateIntervalDisplayInfo');
+            if (updateIntervalDisplay) updateIntervalDisplay(baseNote, targetNote, intervalType);
         }
         
         // 显示尤克里里指位信息
-        showUkulele(AppState.quiz.currentTargetNote);
+        const showUkulele = AppGlobal.getTool('showUkulelePositions');
+        if (showUkulele) showUkulele(AppState.quiz.currentTargetNote);
         
         // 回答正确后立即解锁音级更新
         AppState.quiz.shouldUpdateDegree = true;
         
         // 解锁调性选择和基准音选择（答题已完成）
         AppState.quiz.hasStarted = false;
-        updateModeVisuals();
+        
+        const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
+        if (updateModeVisuals) updateModeVisuals();
         
         // 重置当前题目的尝试状态（为下一题准备）
         AppState.quiz.attemptCount = 0;
         
+        // 重置错误计数（答对后）
+        const resetErrorCount = AppGlobal.getTool('resetErrorCount');
+        if (resetErrorCount) {
+            resetErrorCount();
+        }
 
         // 答对后立即处理，不设置定时器
         stopPlayback();
         if (AppState.dom.mainBtn) {
             AppState.dom.mainBtn.textContent = UI_TEXT.NEXT;
-            updateBigButtonState();
+            const updateBigButtonState = AppGlobal.getTool('updateBigButtonState');
+            if (updateBigButtonState) updateBigButtonState();
         }
-        updateResetButtonState();
         
         // 只有在开启自动下一题时才自动跳转
         const autoNextEnabled = document.getElementById('autoNextCheckbox')?.checked;
@@ -520,9 +643,8 @@ if (typeof updateRightPanelStats === 'function') {
             }
             
             // 显示信息卡片
-            if (showCards) {
-                showCards();
-            }
+            const showCards = AppGlobal.getTool('showInfoCards');
+            if (showCards) showCards();
             
             // 设置新的定时器
             AppState.quiz.autoNextTimer = setTimeout(() => {
@@ -530,12 +652,11 @@ if (typeof updateRightPanelStats === 'function') {
                 
                 // 检查是否仍然处于已回答状态
                 if (AppState.quiz.answered && AppState.dom.mainBtn.textContent === UI_TEXT.NEXT) {
-                    if (resetInfo) {
-                        resetInfo();
-                    }
-                    if (hideCards) {
-                        hideCards();
-                    }
+                    const resetInfo = AppGlobal.getTool('resetAnswerInfo');
+                    const hideCards = AppGlobal.getTool('hideInfoCards');
+                    
+                    if (resetInfo) resetInfo();
+                    if (hideCards) hideCards();
                     
                     // 重置当前题目的状态，为下一题准备
                     AppState.quiz.hasAnsweredCurrent = false;
@@ -549,33 +670,42 @@ if (typeof updateRightPanelStats === 'function') {
                 AppState.quiz.autoNextTimer = null;
             }, displayTime * 1000);
         } else {
-          updateAllMessageDisplays('回答正确！点击"下一题"继续');
-        }
-
-        syncButtons();
-        updateModeVisuals();
-    } else {
-        // 修复：答错处理 - 只增加尝试计数，不标记已回答
-        if (!AppState.quiz.attemptCount) {
-            AppState.quiz.attemptCount = 1;
-        } else {
-            AppState.quiz.attemptCount++;
-        }
-        
-        // 只在当前是第一次答错时显示错误消息
-        if (AppState.quiz.attemptCount === 1) {
-            updateAllMessages('回答错误，请重试');
+            const updateAllMessages = AppGlobal.getTool('updateAllMessageDisplays');
+            if (updateAllMessages) {
+                if (shouldRevealAnswer) {
+                    // ✅ 系统揭晓答案的情况
+                    updateAllMessages('请看正确答案！');
+                } else {
+                    // ✅ 用户真的答对才显示这句
+                    updateAllMessages('回答正确！点击"下一题"继续');
+                }
+            }
         }
     }
     
-    // 只有答错时才在延迟后移除样式，答对保持显示
-    if (!isCorrect) {
-        setTimeout(() => {
-            btn.classList.remove('hit', 'miss');
-            syncButtons();
-            updateModeVisuals();
-        }, 800);
+    // 只有答错且还有机会时才在延迟后移除样式
+    if (!isCorrect && !shouldRevealAnswer) {
+        const getErrorStatus = AppGlobal.getTool('getErrorStatus');
+        const status = getErrorStatus ? getErrorStatus() : { enabled: false, current: 0, allowed: 0 };
+        
+        const remaining = status.allowed - status.current;
+    
+        if (!status.enabled || remaining > 0) {
+            setTimeout(() => {
+                btn.classList.remove('hit', 'miss');
+                const syncButtons = AppGlobal.getTool('syncButtonStates');
+                const updateModeVisuals = AppGlobal.getTool('updateModeButtonsVisualState');
+                syncButtons?.();
+                updateModeVisuals?.();
+            }, 800);
+        }
     }
+    
+    console.log('🎯 checkAnswer 结束', { 
+        answered: AppState.quiz.answered,
+        hasAnsweredCurrent: AppState.quiz.hasAnsweredCurrent,
+        attemptCount: AppState.quiz.attemptCount
+    });
 }
 
 // 处理答对后的逻辑
@@ -607,20 +737,19 @@ function getQuestionBaseNote() {
     const currentKey = AppState.quiz.currentKey || 'C';
     const baseMode = AppState.quiz.questionBaseMode || 'c';
     
-    // 使用工具箱获取当前音域
-    const getCurrentRangeFunc = AppGlobal.getTool('getCurrentRange');
-    const currentRange = getCurrentRangeFunc ? getCurrentRangeFunc() : ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','A#3','B3'];
-    const isLowRange = currentRange[0] === 'C3';
+    // 直接使用音域类型判断，而不是通过音域数组
+    const currentRangeType = AppState.quiz.currentRange || 'low';
+    const isLowRange = currentRangeType === 'low';
     
     if (baseMode === 'c') {
         // 固定C模式：根据音域调整八度
         const baseScale = KEY_SCALES[currentKey]?.basic || KEY_SCALES.C.basic;
-        const cNote = baseScale[0]; // 例如 C3 或 C4
+        const cNote = baseScale[0];
         return isLowRange ? cNote : adjustOctave(cNote, 1);
     } else {
         // 固定A模式：根据音域调整八度
-        const aNote = getANoteForKey(currentKey); // 例如 A4
-        return isLowRange ? adjustOctave(aNote, -1) : aNote; // A3 或 A4
+        const aNote = getANoteForKey(currentKey);
+        return isLowRange ? adjustOctave(aNote, -1) : aNote;
     }
 }
 

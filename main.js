@@ -1,5 +1,4 @@
 import { initRangeSystem, updateRange } from './modules/ui/range-manager.js';
-import { initModalEvents } from './modules/ui/modal-manager.js';
 import { initTheme, watchSystemTheme } from './modules/ui/theme-manager.js';
 import { initAllEventBindings } from './modules/ui/event-bindings.js';
 
@@ -25,7 +24,7 @@ function initialize() {
         watchSystemTheme();   // 系统主题监听
         
         //初始化事件绑定
-        initModalEvents();    // 模态框事件
+            // 模态框事件
         initAllEventBindings(); // 所有其他事件
         
     } catch (error) {

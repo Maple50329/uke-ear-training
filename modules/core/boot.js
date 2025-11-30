@@ -2,21 +2,22 @@ import { AppState } from './state.js';
 import { notes, ranges } from './config.js';
 import { UI_TEXT, KEY_SCALES } from './constants.js';
 import statsManager from '../quiz/stats-manager.js';
-
+import { handleWrongAnswer, getCurrentErrorStatus, revealCorrectAnswer, resetErrorCount, initErrorLimitSystem } from '../quiz/error-limit-manager.js';
 // Audio 相关导入
 import { initSampler, initAudioContextResume, stopPlayback } from '../audio/engine.js';
 import { loadSFX, initSFXSampler } from '../audio/sfx.js';
 import { SAMPLE } from '../audio/sampler-manager.js';
 
 // UI 组件导入
-import { initPitchVisualizer } from '../ui/feedback.js';
-
+import { initPitchVisualizer, showWelcomeOverlays } from '../ui/feedback.js';
+import { initRangeSystem, bindLeftPanelRangeButtons } from '../ui/range-manager.js';
 // 工具和其他功能导入
 import { showKeyChangeToast } from '../utils/displayHelpers.js';
 // 导入工具箱和注册器
 import AppGlobal from './app.js';
 import { registerAllTools, checkToolbox, debugToolbox, TOOL_GROUPS } from './tool-registry.js';
-
+//import { addToHistory } from '../quiz/history.js';
+//AppGlobal.addTool('addToHistory', addToHistory);
 // 导入开始屏幕管理器
 import { StartScreenManager } from '../modes/start-screen.js';
 
@@ -194,16 +195,28 @@ export async function bootStandardMode() {
         startScreen.classList.remove('active');
     }
     
-    const showWelcomeOverlaysFunc = AppGlobal.getTool('showWelcomeOverlays');
+    /* =====  关键：提前把错误次数工具换成真函数，绕过懒加载  ===== */
+    AppGlobal.addTool('handleWrongAnswer', handleWrongAnswer);
+    AppGlobal.addTool('getErrorStatus', getCurrentErrorStatus);
+    AppGlobal.addTool('revealCorrectAnswer', revealCorrectAnswer);
+    AppGlobal.addTool('resetErrorCount', resetErrorCount);
+    AppGlobal.addTool('initErrorLimitSystem', initErrorLimitSystem);
 
+    // 立即执行一次初始化（DOM 绑定 + 读 localStorage + 写 AppState）
+    initErrorLimitSystem();
+    
     /* -------------- 基础初始化 -------------- */
-    showWelcomeOverlaysFunc?.();
+    showWelcomeOverlays();
     AppState.quiz.hasStarted = false;
     AppState.quiz.answered = false;
     AppState.quiz.currentTargetNote = null;
     AppState.quiz.fromReset = false;
     AppState.quiz.hasAnsweredCurrent = false;
     
+    // 确保调用复位按钮状态更新
+    const updateResetButtonStateFunc = AppGlobal.getTool('updateResetButtonState');
+    updateResetButtonStateFunc?.();  // 初始状态禁用复位按钮
+
     function initCustomSampling() {
         const customBtn = document.getElementById('customBtn');
         const resetBtn = document.getElementById('resetBtn');
@@ -517,10 +530,7 @@ if (initRightPanelTool) {
 }
 
 // 确保音高可视化器已初始化
-const initPitchVisualizerTool = AppGlobal.getTool('initPitchVisualizer');
-if (initPitchVisualizerTool) {
-    initPitchVisualizerTool();
-}
+    initPitchVisualizer();
 
 // 如果是移动端，初始化移动端面板并同步数据
 if (window.innerWidth <= 768) {
@@ -540,16 +550,35 @@ if (window.innerWidth <= 768) {
     }
 }
     
-    /* -------------- 其他 UI 初始化 -------------- */
+    /* -------------- 核心设置初始化 -------------- */
     const initUkuleleKeySelectorFunc = AppGlobal.getTool('initUkuleleKeySelector');
     initUkuleleKeySelectorFunc?.();
     
     const initBaseModeButtonsFunc = AppGlobal.getTool('initBaseModeButtons');
     initBaseModeButtonsFunc?.();
     
+    const initRangeSystemFunc = AppGlobal.getTool('initRangeSystem');
+    initRangeSystemFunc?.();
+
+    const bindRangeButtonsFunc = AppGlobal.getTool('bindLeftPanelRangeButtons');
+    bindRangeButtonsFunc?.();
+
     initKeyChangeListener();
     initDifficultyChangeListener();
     
+    /* -------------- 设置面板功能初始化 -------------- */
+
+    const initErrorLimit = AppGlobal.getTool('initErrorLimitSystem');
+    initErrorLimit?.();
+
+    // 初始化所有设置相关功能（包含错误次数系统）
+    const initAllSettingsFunc = AppGlobal.getTool('initAllSettings');
+    initAllSettingsFunc?.();
+    
+    const initAllPanelFeaturesFunc = AppGlobal.getTool('initAllPanelFeatures');
+    initAllPanelFeaturesFunc?.();
+    
+    /* -------------- 按钮和交互初始化 -------------- */
     const initAllButtonsFunc = AppGlobal.getTool('initAllButtons');
     initAllButtonsFunc?.();
     
@@ -558,12 +587,6 @@ if (window.innerWidth <= 768) {
     
     const initMobileSidebarFunc = AppGlobal.getTool('initMobileSidebar');
     initMobileSidebarFunc?.();
-    
-    const initAllPanelFeaturesFunc = AppGlobal.getTool('initAllPanelFeatures');
-    initAllPanelFeaturesFunc?.();
-    
-    const initInfoDisplaySliderFunc = AppGlobal.getTool('initInfoDisplaySlider');
-    initInfoDisplaySliderFunc?.();
     
     initCustomSampling();
     
@@ -605,9 +628,35 @@ export async function boot() {
     initSFXSampler();
     console.log('✅ 音频系统初始化完成');
 
-    // 第三步：加载统计数据
-    if (statsManager && typeof statsManager.loadStats === 'function') {
-        statsManager.loadStats();
+    // 🔴 关键修复：确保统计管理器正确加载和初始化
+    console.log('📊 初始化统计管理器...');
+    
+    // 检查 statsManager 是否已正确初始化
+    if (typeof statsManager === 'undefined') {
+        console.error('❌ statsManager 未定义');
+    } else {
+        console.log('✅ statsManager 已定义', typeof statsManager);
+        
+        if (statsManager && typeof statsManager.loadStats === 'function') {
+            console.log('📊 加载统计数据...');
+            try {
+                statsManager.loadStats();
+                const currentStats = statsManager.getStats();
+                console.log('✅ 统计数据加载完成', currentStats);
+                
+                // 立即更新显示
+                if (typeof updateRightPanelStats === 'function') {
+                    updateRightPanelStats();
+                }
+            } catch (error) {
+                console.error('❌ 统计数据加载失败:', error);
+            }
+        } else {
+            console.error('❌ statsManager 方法缺失', {
+                loadStats: statsManager ? typeof statsManager.loadStats : 'undefined',
+                getStats: statsManager ? typeof statsManager.getStats : 'undefined'
+            });
+        }
     }
 
     // 第四步：初始化开始屏幕管理器

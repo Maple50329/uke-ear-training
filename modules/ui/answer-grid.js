@@ -2,6 +2,7 @@
 import { AppState } from '../core/state.js';
 import { KEY_SCALES } from '../core/constants.js';
 import { isAccidentalNote } from '../utils/helpers.js';
+import { handleWrongAnswer, shouldRevealAnswer, getErrorStatus } from '../quiz/error-limit-manager.js';
 import AppGlobal from '../core/app.js';
 
 let MIN_ANS_HEIGHT = 200;
@@ -22,6 +23,13 @@ function renderAnswerButtons(scaleNotes, difficulty) {
     
     ansArea.innerHTML = '';
     ansArea.classList.remove('notes-8', 'notes-13');
+
+    // 根据当前状态设置禁用类
+    if (!AppState.quiz.hasStarted || AppState.quiz.answered) {
+        ansArea.classList.add('disabled');
+    } else {
+        ansArea.classList.remove('disabled');
+    }
 
     let buttons;
     const key = AppState.quiz.currentKey;
@@ -184,6 +192,12 @@ function getScaleInfo() {
 
 // 视觉反馈系统
 function addVisualFeedback(noteName, feedbackType) {
+    // 🔴 增强检查：在添加效果前检查复位状态
+    if (AppState.quiz.fromReset || AppState.audio.shouldStop) {
+        console.log('复位状态中，跳过视觉反馈');
+        return;
+    }
+    
     const ansArea = getAnsArea();
     if (!ansArea) return;
     
@@ -194,10 +208,15 @@ function addVisualFeedback(noteName, feedbackType) {
         btn.classList.remove('scale-playing', 'reference-playing', 'target-playing');
     });
     
+    // 🔴 再次检查复位状态
+    if (AppState.quiz.fromReset || AppState.audio.shouldStop) return;
+    
     if (feedbackType === 'target') {
         // 目标音：所有按键闪烁蓝色
         buttons.forEach(btn => {
-            btn.classList.add('target-playing');
+            if (!AppState.quiz.fromReset && !AppState.audio.shouldStop) {
+                btn.classList.add('target-playing');
+            }
         });
     } else {
         // 音阶或基准音：找到对应的按键
@@ -205,7 +224,7 @@ function addVisualFeedback(noteName, feedbackType) {
             btn.dataset.noteName === noteName
         );
         
-        if (targetButton) {
+        if (targetButton && !AppState.quiz.fromReset && !AppState.audio.shouldStop) {
             if (feedbackType === 'scale') {
                 targetButton.classList.add('scale-playing');
             } else if (feedbackType === 'reference') {
@@ -214,12 +233,19 @@ function addVisualFeedback(noteName, feedbackType) {
         }
     }
     
-    // 0.5秒后清除反馈
-    setTimeout(() => {
-        buttons.forEach(btn => {
-            btn.classList.remove('scale-playing', 'reference-playing', 'target-playing');
-        });
-    }, 500);
+    // 设置定时器清除反馈，但检查复位状态
+    if (!AppState.quiz.fromReset && !AppState.audio.shouldStop) {
+        const feedbackTimer = setTimeout(() => {
+            if (!AppState.quiz.fromReset && !AppState.audio.shouldStop) {
+                buttons.forEach(btn => {
+                    btn.classList.remove('scale-playing', 'reference-playing', 'target-playing');
+                });
+            }
+        }, 500);
+        
+        // 保存定时器引用以便复位时清除
+        window.visualFeedbackTimer = feedbackTimer;
+    }
 }
 
 // 清除所有视觉反馈
@@ -229,7 +255,26 @@ function clearVisualFeedback() {
     
     const buttons = ansArea.querySelectorAll('.key-btn');
     buttons.forEach(btn => {
-        btn.classList.remove('scale-playing', 'reference-playing', 'target-playing');
+        // 清除所有播放相关的视觉反馈
+        btn.classList.remove(
+            'scale-playing', 
+            'reference-playing', 
+            'target-playing',
+            'pulse-animation',
+            'glow-effect'
+        );
+        
+        // 重置所有样式
+        btn.style.backgroundColor = '';
+        btn.style.borderColor = '';
+        btn.style.boxShadow = '';
+        btn.style.transform = '';
+        btn.style.opacity = '';
+        
+        // 清除答题状态（但保持禁用状态）
+        if (!btn.classList.contains('hit') && !btn.classList.contains('miss')) {
+            btn.classList.remove('hit', 'miss');
+        }
     });
 }
 
@@ -266,10 +311,6 @@ function adjustAnswerAreaScale() {
 
 // 答题区初始化函数
 function initAnswerArea() {
-    
-    const renderFunction = AppGlobal.getTool('renderAnswerButtons');
-    const disableFunction = AppGlobal.getTool('disableAnswerButtons');
-
     const ansArea = getAnsArea();
     if (!ansArea) {
         console.warn('答题区元素未找到，延迟初始化');
@@ -277,12 +318,18 @@ function initAnswerArea() {
         return;
     }
 
-    if (!KEY_SCALES || Object.keys(KEY_SCALES).length === 0) {
-        console.warn('音阶数据未加载，延迟初始化');
-        setTimeout(initAnswerArea, 100);
-        return;
-    }
+    // 只设置必要的类和属性，不设置内联样式
+    ansArea.style.display = 'grid';
+    ansArea.classList.add('disabled');
+    
+    // 清除所有按钮状态，不设置内联样式
+    const buttons = ansArea.querySelectorAll('.key-btn');
+    buttons.forEach(btn => {
+        btn.classList.remove('hit', 'miss', 'scale-playing', 'reference-playing', 'target-playing');
+        btn.disabled = true; // 只设置属性，样式由CSS控制
+    });
 
+    // 其他初始化代码保持不变...
     const difficulty = document.getElementById('difficultySelect')?.value || 'basic';
     const key = document.getElementById('keySelect')?.value || 'C';
 
@@ -299,20 +346,20 @@ function initAnswerArea() {
     }
 
     try {
-        // 使用工具箱函数
+        const renderFunction = AppGlobal.getTool('renderAnswerButtons');
+        const disableFunction = AppGlobal.getTool('disableAnswerButtons');
+
         if (renderFunction) {
             renderFunction(scale, difficulty);
         }
         if (disableFunction) {
             disableFunction();
         }
-        
+
         setTimeout(() => {
             forceRefreshScale();
         }, 200);
         
-        ansArea.style.display = 'grid';
-        ansArea.style.opacity = '1';
     } catch (error) {
         console.error('答题区初始化失败:', error);
     }

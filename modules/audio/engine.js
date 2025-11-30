@@ -1,7 +1,7 @@
 import { AppState } from '../core/state.js';
 import { SAMPLER_CONFIG } from '../core/constants.js';
 import { updateMasterVolume } from '../audio/volume.js';
-import { playbackManager } from './playback-manager.js';
+import { playNoteSampler, stopAllPlayback } from './playback-manager.js';
 
 // 初始化Sampler
 function initSampler() {
@@ -19,57 +19,44 @@ function initSampler() {
   }
 }
 
-async function playNoteSampler(noteName, duration = 1.5) {
-  if (!noteName) return;
-  
-  try {
-      // 播放单个音符时触发开始
-      window.dispatchEvent(new CustomEvent('audio-state-changed', {
-        detail: { isPlaying: true, action: 'note-playing', note: noteName }
-      }));
-      
-      await playbackManager.playNote(noteName, duration);
-      
-      // 音符播放结束触发停止
-      window.dispatchEvent(new CustomEvent('audio-state-changed', {
-        detail: { isPlaying: false, action: 'note-ended' }
-      }));
-  } catch (error) {
-      console.error('播放失败:', error);
-      window.dispatchEvent(new CustomEvent('audio-state-changed', {
-        detail: { isPlaying: false, action: 'play-error' }
-      }));
-  }
-}
-
 // 停止所有音频的函数
 function stopAllAudio() {
-  playbackManager.stopAll();
+  console.log('🛑 强制停止所有音频');
   
-  // 原有的停止逻辑
-  if (AppState.audio.sampler) {
-      AppState.audio.sampler.releaseAll();
+  // 设置停止标志
+  AppState.audio.shouldStop = true;
+  AppState.audio.isPlaying = false;
+  
+  // 停止 Tone.js 所有声音
+  if (window.Tone) {
+    try {
+      // 停止所有采样器
+      if (AppState.audio.sampler) {
+        AppState.audio.sampler.releaseAll();
+      }
+      // 停止音效采样器
+      if (AppState.audio.sfxSampler) {
+        AppState.audio.sfxSampler.releaseAll();
+      }
+      // 停止传输
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      console.log('✅ Tone.js 音频已强制停止');
+    } catch (e) {
+      console.log('停止 Tone.js 失败:', e.message);
+    }
   }
-  if (AppState.audio.sfxSampler) {
-      AppState.audio.sfxSampler.releaseAll();
+  
+  // 停止自定义采样器
+  if (customSampler && typeof customSampler.stopAll === 'function') {
+    customSampler.stopAll();
   }
 }
 
-function stopPlayback() {
-  AppState.audio.shouldStop = true;
-  stopAllAudio();
-  
-  // 重置播放状态
-  AppState.audio.shouldStop = false;  // ← 关键修复：重置停止标志
-  AppState.quiz.locked = false;
-  
-  // 更新按钮状态
-  if (typeof updateBigButtonState === 'function') {
-      updateBigButtonState();
-  }
-  if (typeof updateResetButtonState === 'function') {
-      updateResetButtonState();
-  }
+// 重新导出停止函数，保持兼容性
+export function stopPlayback() {
+  console.log('🛑 调用播放管理器停止所有播放');
+  stopAllPlayback();
 }
 
 // 停止所有音符播放
@@ -245,14 +232,22 @@ function reconnectAudioNodes() {
   AppState.audio.nodesReconnected = true;
 }
 
+// 辅助函数：显示音频错误
+function showAudioError(message) {
+  const msgDisplay = document.getElementById('msg');
+  if (msgDisplay) {
+    msgDisplay.textContent = message;
+  }
+}
+
+// 导出函数
 export {
   initSampler,
-  playNoteSampler,
   stopAllAudio,
-  stopPlayback,
   stopAllNotes,
   ensureAudioContextReady,
   initAudioContextResume,
   handleFirstUserInteraction,
   reconnectAudioNodes,
+  playNoteSampler,
 };

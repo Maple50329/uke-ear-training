@@ -11,11 +11,11 @@ function updateAllElements(id, value) {
 
 // 历史记录管理器
 const HistoryManager = {
-  MAX_RECORDS: 30,
+  MAX_RECORDS: 100,
   STORAGE_KEY: 'pitch_history_v2',
   
   // 添加新记录
-  addRecord(baseNote, targetNote, key, baseMode) {
+  addRecord(baseNote, targetNote, key, baseMode, answerType = 'normal') {
     const records = this.getRecords();
     
     // 计算唱名
@@ -29,6 +29,7 @@ const HistoryManager = {
       targetSolfeggio,
       key,
       baseMode,
+      answerType,
       timestamp: Date.now()
     };
     
@@ -65,25 +66,24 @@ const HistoryManager = {
 
   // 从答题区获取唱名
   getSolfeggioFromAnswerArea() {
+
     try {
       const answerArea = document.getElementById('ans');
-      if (!answerArea) {
-        console.warn('答题区未找到');
-        return '--';
-      }
+      if (!answerArea) return '--';
+  
+      const targetNote = AppState.quiz.currentTargetNote;
       
-      // 查找正确答案按钮（有 hit 类的按钮）
-      const correctButton = answerArea.querySelector('.key-btn.hit');
-      if (!correctButton) {
-        console.warn('未找到正确答案按钮');
-        return '--';
-      }
-      
-      // 直接从按钮文本获取唱名
-      const solfeggio = correctButton.textContent.trim();      
-      return solfeggio;
-    } catch (error) {
-      console.error('从答题区获取唱名错误:', error);
+      if (!targetNote) return '--';
+  
+      // 用音符匹配按钮，而不是依赖 .hit
+      const correctButton = answerArea.querySelector(`.key-btn[data-note-name="${targetNote}"]`);
+          console.log('🔍 targetNote:', targetNote);
+      if (!correctButton) return '--';
+  
+      return correctButton.textContent.trim();
+  
+    } catch (e) {
+      console.error('获取目标唱名失败:', e);
       return '--';
     }
   },
@@ -251,21 +251,23 @@ class HistoryInteraction {
     const noteToPlay = playType === 'base' ? record.baseNote : record.targetNote;
     
     try {
-      // 检查播放函数是否可用
-      if (window.playNoteSampler) {
-        await window.playNoteSampler(noteToPlay, 1.0);
-      } else if (window.playNote) {
-        await window.playNote(noteToPlay, 1.0);
+      // 确保音频上下文就绪
+      const ensureAudioContextReady = AppGlobal?.getTool('ensureAudioContextReady');
+      if (ensureAudioContextReady) {
+        await ensureAudioContextReady();
+      }
+      
+      // 使用工具箱的播放函数
+      const playNoteSamplerTool = AppGlobal?.getTool('playNoteSampler');
+      if (playNoteSamplerTool) {
+        await playNoteSamplerTool(noteToPlay, 1.0);
       } else {
-        console.error('❌ 音频播放函数不可用');
-
-        const playNoteSamplerTool = AppGlobal?.getTool('playNoteSampler');
-        if (playNoteSamplerTool) {
-          await playNoteSamplerTool(noteToPlay, 1.0);
-        }
+        console.error('❌ playNoteSampler 工具未找到');
+        this.showToast('音频播放功能暂不可用');
       }
     } catch (error) {
       console.error('播放历史记录音频失败:', error);
+      this.showToast('播放失败，请重试');
     } finally {
       this.clearPlaybackState(historyItem);
     }
@@ -273,14 +275,7 @@ class HistoryInteraction {
   
   // 停止当前播放
   stopCurrentPlayback() {
-    
-    // 检查各种停止函数
-    if (window.Tone && window.Tone.Transport) {
-      console.log('✅ 使用 Tone.js Transport');
-      window.Tone.Transport.stop();
-    }
-    
-    // 清除播放状态
+    // 只清除UI播放状态，不停止音频引擎
     document.querySelectorAll('.history-item.playing-base, .history-item.playing-target')
       .forEach(item => {
         item.classList.remove('playing-base', 'playing-target');
@@ -354,27 +349,51 @@ class HistoryInteraction {
       return;
     }
     
-    const html = records.map(record => `
-      <div class="history-item" data-record-id="${record.id}">
-        <div class="history-section-left" data-type="base">
-          <div class="solfeggio-name">${record.baseSolfeggio}</div>
+    const html = records.map(record => {
+      // 根据 answerType 决定 class（颜色）
+      let typeClass = '';
+      if (record.answerType === 'first_try') typeClass = ' first-try';
+      else if (record.answerType === 'multi_try') typeClass = ' multi-try';
+      else if (record.answerType === 'system_reveal') typeClass = ' system-reveal';
+    
+      // ⭐ 仅首击正确显示徽标
+      const badgeHtml = record.answerType === 'first_try'
+        ? '<span class="history-badge first-try-badge">首击</span>'
+        : '';
+    
+      return `
+        <div class="history-item${typeClass}" data-record-id="${record.id}">
+          <div class="history-section-left" data-type="base">
+            <div class="solfeggio-name">${record.baseSolfeggio}</div>
+          </div>
+    
+          <div class="history-section-middle">
+            <div class="key-info">
+              <span class="key-text">${record.key}调</span>
+              ${badgeHtml}
+            </div>
+          </div>
+    
+          <div class="history-section-right" data-type="target">
+            <div class="solfeggio-name">${record.targetSolfeggio}</div>
+          </div>
         </div>
-        <div class="history-section-middle">
-          <div class="key-info">${record.key}调</div>
-        </div>
-        <div class="history-section-right" data-type="target">
-          <div class="solfeggio-name">${record.targetSolfeggio}</div>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     
     if (historyList) historyList.innerHTML = html;
     if (mobileHistoryList) mobileHistoryList.innerHTML = html;
   }
   
   // 添加新记录
-  addNewRecord(baseNote, targetNote, key, baseMode) {
-    const newRecord = HistoryManager.addRecord(baseNote, targetNote, key, baseMode);
+  addNewRecord(baseNote, targetNote, key, baseMode, answerType = 'normal') {
+    const newRecord = HistoryManager.addRecord(
+      baseNote,
+      targetNote,
+      key,
+      baseMode,
+      answerType
+    );
     this.renderHistory();
     return newRecord;
   }
@@ -382,23 +401,49 @@ class HistoryInteraction {
 
 /**
  * 添加历史记录
+ * @param {string} noteName        // 当前答的音（现在没用到，先保留）
+ * @param {boolean} isCorrect      // recordedCorrect（系统揭晓你现在传的是 false）
+ * @param {boolean} shouldReveal   // 是否系统揭晓
+ * @param {boolean} isFirstAttempt // 是否首击（来自 manager.js）
  */
-export function addToHistory(noteName, isCorrect) {
+export function addToHistory(noteName, isCorrect, shouldReveal = false, isFirstAttempt = false) {
   try {
-    // 只在答对时记录到新系统
-    if (isCorrect) {
-      const historyManager = window.historyInteraction;
-      if (historyManager && historyManager.addNewRecord) {
-        const baseNote = getQuestionBaseNote();
-        const targetNote = AppState.quiz.currentTargetNote;
-        const key = AppState.quiz.currentKey;
-        const baseMode = AppState.quiz.questionBaseMode;
-        
-        historyManager.addNewRecord(baseNote, targetNote, key, baseMode);
-      } else {
-        console.warn('❌ 历史记录管理器未找到');
-      }
+    const historyManager = window.historyInteraction;
+    if (!historyManager || !historyManager.addNewRecord) {
+      console.warn('❌ 历史记录管理器未找到');
+      return;
     }
+
+    // 只在「用户最终答对」或「系统揭晓」时记录
+    if (!isCorrect && !shouldReveal) {
+      return;
+    }
+
+    const baseNote = getQuestionBaseNote();
+    const targetNote = AppState.quiz.currentTargetNote;
+    const key = AppState.quiz.currentKey;
+    const baseMode = AppState.quiz.questionBaseMode;
+
+    let answerType = 'normal';
+
+    if (shouldReveal) {
+      // 🟥 系统揭晓
+      answerType = 'system_reveal';
+    } else if (isCorrect && isFirstAttempt) {
+      // 🟩 首击正确
+      answerType = 'first_try';
+    } else if (isCorrect && !isFirstAttempt) {
+      // 🟧 曾经答错过，但最终自己点对
+      answerType = 'multi_try';
+    }
+
+    historyManager.addNewRecord(
+      baseNote,
+      targetNote,
+      key,
+      baseMode,
+      answerType
+    );
   } catch (error) {
     console.error('添加历史记录失败:', error);
   }
